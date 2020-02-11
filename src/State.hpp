@@ -1,46 +1,33 @@
-#include "includes.hpp" //from HaMMLET
+#include "NormalDistribution.hpp"
+#include "includes.hpp" // from HaMMLET
 
+/**
+* This class represents the State of a hidden Markov model; it is characterized
+* by a continuous Normal emission probability distribution function.
+*/
 class State {
     /** Name of the state */
     std::string mName;
-    /** Mean of the Normal distribution */
-    real_t mMean;
-    /** Variance of the Normal distribution */
-    real_t mVariance;
+    NormalDistribution mDistribution;
 public:
     /** Constructor with default name */
-    State(real_t& mean, real_t& variance);
+    State(NormalDistribution distribution);
     /** Constructor with given name */
-    State(real_t& mean, real_t& variance, std::string& name);
+    State(NormalDistribution distribution, std::string& name);
     std::string name();
-    real_t mean();
-    real_t variance();
-    void setMean(real_t mean);
-    void setVariance(real_t variance);
+    NormalDistribution distribution();
 };
 
-State::State(real_t& mean, real_t& variance) : mMean(mean),
-    mVariance(variance){}
+State::State(NormalDistribution distribution) : mDistribution(distribution),
+    mName("Default Name"){}
 
-State::State(real_t& mean, real_t& variance, std::string& name) : mMean(mean),
-    mVariance(variance), mName(name){}
+State::State(NormalDistribution distribution, std::string& name) :
+    mDistribution(distribution), mName(name){}
 
 std::string State::name(){
     return mName;
 }
 
-real_t State::mean(){
-    return mMean;
-}
-
-real_t State::variance(){
-    return mVariance;
-}
-
-void State::setMean(real_t mean){
-    mMean = mean;
-}
-
-void State::setVariance(real_t variance){
-    mVariance = variance;
+NormalDistribution State::distribution(){
+    return mDistribution;
 }

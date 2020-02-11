@@ -1,14 +1,11 @@
-// #include "hammlet-manpage.hpp"
 #include "Tags.hpp"
 #include "HMM.hpp"
-// #include "Options.hpp"
-#include "Parser.hpp"
-#include "Emissions.hpp"
+//#include "Emissions.hpp"
 #include "Blocks.hpp"
-#include "AutoPriors.hpp"
-#include "Records.hpp"
+//#include "AutoPriors.hpp"
+//#include "Records.hpp"
 #include "wavelet.hpp"
-#include "StateSequence.hpp"
+//#include "StateSequence.hpp"
 #include "Statistics.hpp"
 #include "includes.hpp"
 #include "utils.hpp"
@@ -86,9 +83,9 @@ Compressor::Compressor(std::string& f){
         // divide by sqrt(2/pi) to get estimate of standard deviation
         // for normal distribution
 		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331;
-        mThreshold = sqrt(2 * log((real_t)waveletBlocks->size()) * stdEstimate);
+        mThreshold = sqrt(2 * log((real_t)mWaveletBlocks->size()) * stdEstimate);
 
-        HaarBreakpointWeights(inputValues);
+        HaarBreakpointWeights(mInputValues);
 		mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
 		mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
 		mWaveletBlocks->createBlocks(mThreshold);
@@ -116,15 +113,15 @@ void Compressor::next(){
     mWaveletBlocks->next();
 }
 
-void Compressor::start(){
+size_t Compressor::start(){
     mWaveletBlocks->start();
 }
 
-void Compressor::end(){
+size_t Compressor::end(){
     mWaveletBlocks->end();
 }
 
-void Compressor::blockSize(){
+size_t Compressor::blockSize(){
     mWaveletBlocks->blockSize();
 }
 

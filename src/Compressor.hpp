@@ -10,8 +10,6 @@
 #include "includes.hpp"
 #include "utils.hpp"
 
-#define INPUT_FILENAME std::string("data")
-
 class Compressor {
     /** Input observations values */
     vector<real_t> mInputValues;
@@ -141,5 +139,6 @@ void Compressor::printAllBlocks(){
         printBlockInfo();
         mWaveletBlocks->next();
     } while (mWaveletBlocks->end() < mWaveletBlocks->size());
+    printBlockInfo();
     initForward();
 }

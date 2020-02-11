@@ -1,6 +1,7 @@
 CC = g++
-INC_DIR = ../../Downloads/HaMMLET/src
-CFLAGS=-I$(INC_DIR)
+
+HMM_DIR = ../../Downloads/HaMMLET/src
+HFLAGS=-I$(HMM_DIR)
 
 all:
-	$(CC) -o ./bin/main ./src/main.cpp $(CFLAGS)
+	$(CC) -o ./bin/WaHMM ./src/WaHMM.cpp $(HFLAGS)

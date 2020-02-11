@@ -10,32 +10,37 @@ for the Model to solve problem 1 and 2. It would be also able ot use the
 solution of problem 3 to generate a Model on which apply problem 1 and 2.
 */
 class Model {
+public:
     vector<State> mStates;
     real_t **mLogTransitions;
     vector<real_t> mInitialDistribution;
-public:
+    Model();
+    Model(const Model& that) = delete;
     Model(vector<State>& states, real_t **logTransitions,
-        vector<real_t>& initialDistribution){}
+        vector<real_t>& initialDistribution);
+    size_t numberOfStates();
     void printModel();
 };
+
+Model::Model(){}
 
 Model::Model(vector<State>& states, real_t **logTransitions,
     vector<real_t>& initialDistribution){
     mStates = vector<State>(states);
     mLogTransitions = new real_t*[states.size()];
     for(int i = 0; i < states.size(); i++)
-        mLogTransitions = new real_t[states.size()];
+        mLogTransitions[i] = new real_t[states.size()];
     for(int i = 0; i < states.size(); i++)
         for(int j = 0; j < states.size(); j++)
             mLogTransitions[i][j] = logTransitions[i][j];
     mInitialDistribution = vector<real_t>(initialDistribution);
 }
 
-Model::printModel(){
+void Model::printModel(){
     for(State s : mStates){
         cout << s.name();
-        cout << " | Mean: " << s.mean();
-        cout << " | StdDev: " << s.stdDev();
+        cout << " | Mean: " << s.distribution().mean();
+        cout << " | StdDev: " << s.distribution().stdDev();
         cout << endl;
     }
     cout << "++++++++++" << endl;

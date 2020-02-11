@@ -30,5 +30,5 @@ real_t NormalDistribution::stdDev(){
 
 real_t NormalDistribution::pdf(real_t x){
     const real_t log_1_2pi = -1.8378770664093454835606594728112352797227949472;
-    return (log_1_2pi - log(stdDev) - 0.5*pow((x - mMean) / mStdDev, 2) );
+    return (log_1_2pi - log(mStdDev) - 0.5*pow((x - mMean) / mStdDev, 2) );
 }

@@ -16,33 +16,60 @@
 #define INPUT_FILENAME std::string("data")
 
 class Compressor {
-    vector<real_t> inputValues;
-    vector<SufficientStatistics<Normal>> stats;
-    real_t threshold;
-    Statistics<IntegralArray, Normal> *integralArray;
-    Blocks<BreakpointArray> *waveletBlocks;
+    /** Input observations values */
+    vector<real_t> mInputValues;
+    /** Sum of the observations in a block */
+    vector<SufficientStatistics<Normal>> mStats;
+    /** Threshold used to form blocks in the breakpoint array */
+    real_t mThreshold;
+    /** Integral array, @see HaMMLET documentation */
+    Statistics<IntegralArray, Normal> *mIntegralArray;
+    /** Breakpoint array, @see HaMMLET documentation */
+    Blocks<BreakpointArray> *mWaveletBlocks;
 public:
     Compressor(const Compressor& that) = delete;
+    /**
+    * Construct a Compressor object. Data is read from an input file, creating
+    * a breakpoint array and defining a threshold to use; blocks are then
+    * defined and the integral array is created. There is initialization to
+    * correctly read the first block.
+    *
+    * @param filename the name of the input file to read the data
+    */
     Compressor(std::string& filename);
     ~Compressor();
+    /** Move the "current block pointer" back to the first block. */
     void initForward();
+    /** Move the "current block pointer" one step forward. */
     void next();
-    void start();
-    void end();
-    void blockSize();
+    /** Return the start index of the "current block". */
+    size_t start();
+    /** Return the end index of the "current block". */
+    size_t end();
+    /** Return the size of the "current block". */
+    size_t blockSize();
+    /** Return the sum of the observations in the "current block". */
     real_t blockSum();
+    /** Print start and end indexes of the "current block" alongside with its
+    * size and the sum of the observation values in it; the format used is
+    * [start,end) size - "Sum:" sum
+    */
     void printBlockInfo();
+    /**
+    * Print block information for all blocks, preceded by the thresold value
+    * used to form them.
+    */
     void printAllBlocks();
 };
 
 Compressor::Compressor(std::string& f){
     try {
-        const size_t nrDataDim = 1;
+        const size_t nrDataDim = 1; // number of dimensions
         ifstream finput(f);
-        // Open the file and populate inputValues
+        // Open the file and populate mInputValues
         if(finput) {
-            MaxletTransform(finput, inputValues, stats, nrDataDim,
-                inputValues.size() + nrLinesInFile(finput) + 1);
+            MaxletTransform(finput, mInputValues, mStats, nrDataDim,
+                mInputValues.size() + nrLinesInFile(finput) + 1);
         } else {
           throw runtime_error( "Cannot read from input file " + f + "!" );
         }
@@ -51,22 +78,22 @@ Compressor::Compressor(std::string& f){
         // detail coefficients
 		double stdEstimate = 0;
 		size_t nrDetailCoeffs = 0;
-		for (size_t i = 1; i < inputValues.size(); i += 2){
-			stdEstimate += inputValues[i];
+		for (size_t i = 1; i < mInputValues.size(); i += 2){
+			stdEstimate += mInputValues[i];
 			nrDetailCoeffs++;
 		}
 		stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
         // divide by sqrt(2/pi) to get estimate of standard deviation
         // for normal distribution
 		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331;
-        threshold = sqrt(2 * log((real_t)waveletBlocks->size()) * stdEstimate);
+        mThreshold = sqrt(2 * log((real_t)waveletBlocks->size()) * stdEstimate);
 
         HaarBreakpointWeights(inputValues);
-		integralArray = new Statistics<IntegralArray, Normal>(stats, nrDataDim);
-		waveletBlocks = new Blocks<BreakpointArray>(inputValues);
-		waveletBlocks->createBlocks(threshold);
-		waveletBlocks->initForward();
-		waveletBlocks->next();
+		mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
+		mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
+		mWaveletBlocks->createBlocks(mThreshold);
+		mWaveletBlocks->initForward();
+		mWaveletBlocks->next();
     }
     catch(exception& e) {
         std::cout << std::flush;
@@ -76,148 +103,46 @@ Compressor::Compressor(std::string& f){
 }
 
 Compressor::~Compressor(){
-    delete integralArray;
-    delete waveletBlocks;
+    delete mIntegralArray;
+    delete mWaveletBlocks;
 }
 
 void Compressor::initForward(){
-    waveletBlocks->initForward();
-    waveletBlocks->next();
+    mWaveletBlocks->initForward();
+    mWaveletBlocks->next();
 }
 
 void Compressor::next(){
-    waveletBlocks->next();
+    mWaveletBlocks->next();
 }
 
 void Compressor::start(){
-    waveletBlocks->start();
+    mWaveletBlocks->start();
 }
 
 void Compressor::end(){
-    waveletBlocks->end();
+    mWaveletBlocks->end();
 }
 
 void Compressor::blockSize(){
-    waveletBlocks->blockSize();
+    mWaveletBlocks->blockSize();
 }
 
 real_t Compressor::blockSum(){
-    integralArray->setStats(*waveletBlocks);
-    return integralArray->suffStat(0).sum(); // 0 is the dimension index
+    mIntegralArray->setStats(*mWaveletBlocks);
+    return mIntegralArray->suffStat(0).sum(); // 0 is the dimension index
 }
 
 void Compressor::printBlockInfo(){
-    waveletBlocks->printBlock();
+    mWaveletBlocks->printBlock();
     cout << "- Sum: " << blockSum() << endl;
 }
 
 void Compressor::printAllBlocks(){
-    cout << "Threshold used: " << threshold << endl;
-    cout << "Printing all blocks with the following format: " << endl;
-    cout << "[start,end) size" << endl;
+    cout << "Threshold used: " << mThreshold << endl;
     do {
         printBlockInfo();
-        waveletBlocks->next();
-    } while (waveletBlocks->end() < waveletBlocks->size());
+        mWaveletBlocks->next();
+    } while (mWaveletBlocks->end() < mWaveletBlocks->size());
     initForward();
 }
-
-// 		cout << "---- Blocks -----" << endl;
-// 		for(int i = 0; waveletBlocks.end() < waveletBlocks.size() ; i++){
-// 			waveletBlocks.printBlock();
-// 			ia.setStats(waveletBlocks);
-// 			cout << endl;
-// 			// 1 is the number of dimensions
-// 			cout << "suffStat[0]: " << ia.suffStat(0) << endl;
-// 			waveletBlocks.next();
-// 		}
-//
-// 		cin >> a;
-//
-//     }
-// }
-//
-// int main( int argc, const char* argv[] ) {
-// 	int a;
-// 	try {
-//
-// 		vector<real_t> inputValues;
-// 		vector<SufficientStatistics<Normal>> stats;
-// 		ifstream fin( INPUT_FILENAME );
-// 		bool verbose = true;
-// 		const size_t nrDataDim = 1;
-//
-// 		if ( fin ) {
-// 			// TODO this can still lead to reallocation, fix later
-// 			// TODO MaxletTransform does not work for multiple files in its current state
-// 			MaxletTransform( fin, inputValues, stats, nrDataDim, inputValues.size() + nrLinesInFile( fin ) + 1 );
-// 			// NOTE Reserving +1 is really important here! In the integral array, an element is appended to stats, and not reserving space for that element can lead to reallocations in the gigabyte range!
-// 		} else {
-// 			throw runtime_error( "Cannot read from input file " + INPUT_FILENAME + "!" );
-// 		}
-// 		const size_t T = inputValues.size();
-//
-// 		cout << "Number of data points: " + to_string( T ) << endl << flush;
-//
-// 		// compute an estimate of the noise variance from the finest detail coefficients
-// 		double stdEstimate=0;
-// 		size_t nrDetailCoeffs=0;
-// 		for (size_t i=1; i< inputValues.size(); i+=2){
-// 			stdEstimate += inputValues[i];
-// 			nrDetailCoeffs++;
-// 		}
-// 		stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
-// 		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331; // divide by sqrt(2/pi) to get estimate of standard deviation for normal distribution
-//
-// 		cout << "stdEstimate: " + to_string( stdEstimate ) << endl << flush;
-// 		// inputValues holds the maxlet transform, now transform it to breakpoint weights
-// 		if ( verbose ) {
-// 			cout << "Calculating Haar breakpoint weights" << endl << flush;
-// 		}
-// 		HaarBreakpointWeights( inputValues );
-//
-// 		typedef Statistics<IntegralArray, Normal> S;
-// 		typedef Blocks<BreakpointArray> B;
-// 		S ia( stats, nrDataDim );
-// 		B waveletBlocks( inputValues );
-//
-// 		cout << "---- Trying to create blocks ----" << endl;
-// 		cout << "Threshold: " << sqrt( 2 * log( ( real_t )waveletBlocks.size() ) * stdEstimate) << endl;
-// 		waveletBlocks.createBlocks(sqrt( 2 * log( ( real_t )waveletBlocks.size() ) * stdEstimate));
-// 		waveletBlocks.initForward();
-// 		waveletBlocks.next();
-//
-//
-// 		cout << "---- BreakpointArray ----" << endl;
-// 		cout << "avgWeight: " + to_string ( waveletBlocks.avgWeight() ) << endl;
-// 		cout << "start: " + to_string( waveletBlocks.start() ) << endl;
-// 		cout << "end: " + to_string( waveletBlocks.end() ) << endl;
-// 	  cout << "pos: " + to_string( waveletBlocks.pos() ) << endl;
-// 		cout << "blockSize: " + to_string( waveletBlocks.blockSize() ) << endl;
-// 		waveletBlocks.printBlock();
-// 		cout << endl;
-//
-// 		cout << "---- Blocks -----" << endl;
-// 		for(int i = 0; waveletBlocks.end() < waveletBlocks.size() ; i++){
-// 			waveletBlocks.printBlock();
-// 			ia.setStats(waveletBlocks);
-// 			cout << endl;
-// 			// 1 is the number of dimensions
-// 			cout << "suffStat[0]: " << ia.suffStat(0) << endl;
-// 			waveletBlocks.next();
-// 		}
-//
-// 		cin >> a;
-//
-// 	} catch
-// 		( exception& e ) {
-// 		cout << flush;
-// 		cerr << endl << flush << "[ERROR] " << e.what()  << endl;
-// 		cerr << "Terminating HaMMLET. The rest is silence." << endl << flush;
-//
-// 		return 1;
-// 	}
-//
-// 	return 0;
-//
-// }

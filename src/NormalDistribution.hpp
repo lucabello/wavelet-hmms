@@ -29,6 +29,10 @@ real_t NormalDistribution::stdDev(){
 }
 
 real_t NormalDistribution::pdf(real_t x){
-    const real_t log_1_2pi = -1.8378770664093454835606594728112352797227949472;
-    return (log_1_2pi - log(mStdDev) - 0.5*pow((x - mMean) / mStdDev, 2) );
+    //TODO: write more efficient implementation
+    const real_t log_sqrt2pi = 0.9189385332046727417803297364056176398613974;
+    return (- log_sqrt2pi - log(mStdDev) - 0.5*pow((x - mMean) / mStdDev, 2) );
+    //const real_t sqrt_2pi = 2.50662827463100050241576528481104525300698674060;
+    //return log(exp(-(pow(x - mMean, 2))/
+    //    (2*pow(mStdDev, 2)))/(mStdDev*sqrt_2pi));
 }

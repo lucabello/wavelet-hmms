@@ -16,7 +16,7 @@ public:
     /** Constructor with default name */
     State(NormalDistribution distribution);
     /** Constructor with given name */
-    State(NormalDistribution distribution, std::string& name);
+    State(NormalDistribution distribution, std::string name);
     std::string name();
     NormalDistribution distribution();
     size_t id();
@@ -27,7 +27,7 @@ size_t State::idCounter = 0;
 State::State(NormalDistribution distribution) : mDistribution(distribution),
     mName("Default Name"), mId(idCounter++){}
 
-State::State(NormalDistribution distribution, std::string& name) :
+State::State(NormalDistribution distribution, std::string name) :
     mDistribution(distribution), mName(name), mId(idCounter++){}
 
 size_t State::id(){

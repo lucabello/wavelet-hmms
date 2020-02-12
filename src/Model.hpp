@@ -53,6 +53,9 @@ void Model::printModel(){
     cout << "++++++++++" << endl;
     cout << "Initial Distribution: " << endl;
     for(int i = 0; i < mStates.size(); i++)
+        // if(mInitialDistribution[i] == -inf)
+        //     cout << "-inf ";
+        // else
         cout << mInitialDistribution[i] << " ";
     cout << endl;
     cout << "++++++++++" << endl;

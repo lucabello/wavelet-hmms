@@ -1,23 +1,29 @@
 #include "includes.hpp"
 #include "Compressor.hpp"
 #include "Model.hpp"
+#include "utilities.hpp"
+#include <list>
+using std::list;
 
-real_t evaluation_prob(Model& m, vector<real_t>& obs, bool verbose);
+void evaluation_prob(Model& m, vector<real_t>& obs, bool verbose);
+void decoding_prob(Model& m, vector<real_t>& obs, bool verbose);
 
 int main(int argc, const char* argv[]){
-    std::string obsFile("data");
-    std::string pathFile("path");
+    cout << std::scientific; // print numbers with scientific notation
+
+    std::string obsFile("data/observations");
+    std::string pathFile("data/path");
     vector<real_t> observations;
     vector<size_t> statePath;
     Model model;
-    bool verbose = true, verboseForward = true;
+    bool verbose = true, verboseForward = true, verboseViterbi = true;
 
     if(verbose)
         cout << "Trying to define model...";
 
     // Define the model
-    State s0(NormalDistribution(0, 1), "State 0");
-    State s1(NormalDistribution(10, 1), "State 1");
+    State s0(NormalDistribution(0, 5), "State 0");
+    State s1(NormalDistribution(10, 5), "State 1");
     vector<State> states;
     states.push_back(s0);
     states.push_back(s1);
@@ -69,10 +75,9 @@ int main(int argc, const char* argv[]){
         cout << " success!" << endl;
 
     // Try to solve the first prolem
-    real_t logEval = evaluation_prob(model, observations, verboseForward);
-
-    if(verbose)
-        cout << "The final result is P(O|lambda): " << logEval << endl;
+    evaluation_prob(model, observations, verboseForward);
+    // Try to solve the second problem
+    decoding_prob(model, observations, verboseViterbi);
 
     /*
     Memorizing the file two times is too much and causes segmentation fault.
@@ -85,51 +90,38 @@ int main(int argc, const char* argv[]){
     return 0;
 }
 
-/** Given (a = log(x) and b = log(y), returns log(x+y)) */
-real_t sum_logarithms(real_t& a, real_t& b){
-    /**
-	Perform log-sum-exp on a pair of numbers in log space..  This is calculated
-	as z = log( e**x + e**y ). However, this causes underflow sometimes
-	when x or y are too negative. A simplification of this is thus
-	z = x + log( e**(y-x) + 1 ), where x is the greater number. If either of
-	the inputs are infinity, return infinity, and if either of the inputs
-	are negative infinity, then simply return the other input.
-	*/
-    //TODO : Write the correct implementation!
-    if(a == inf || b == inf)
-        return inf;
-    if(a == -inf)
-        return b;
-    if(b == -inf)
-        return a;
-    if(a > b)
-        return a + log(exp(b-a) + 1);
-    return b + log(exp(a-b) + 1);
-}
-
-real_t evaluation_prob(Model& m, vector<real_t>& obs, bool verbose){
+/**
+* Solve the evaluation problem through the forward algorithm.
+* If verbose it prints the forward matrix.
+*
+* @param m the model
+* @param obs the observation sequence
+* @param verbose if true prints result informations
+*/
+void evaluation_prob(Model& m, vector<real_t>& obs, bool verbose){
     real_t **logForward;
-    logForward = new real_t*[m.mStates.size()];
+    logForward = new real_t*[m.mStates.size()]; // forward variables
+
+    if(verbose)
+        cout << "+++++ Evaluation Problem +++++" << endl;
 
     // initialization
     for(int i = 0; i < m.mStates.size(); i++){
         logForward[i] = new real_t[obs.size()];
+        // alpha_0(i) = pi_i * b_i(O_1)
         logForward[i][0] = m.mInitialDistribution[i] + m.mStates[i]
             .distribution().pdf(obs[0]);
     }
 
-    real_t newContrib;
     // induction
     for(int o = 1; o < obs.size(); o++){ // observations
         for(int j = 0; j < m.mStates.size(); j++)
             logForward[j][o] = -inf;
-        // TODO: Initialize the logForward[j][o] = -Inf for every j
         for(int j = 0; j < m.mStates.size(); j++){ // arriving state
             for(int i = 0; i < m.mStates.size(); i++){ // starting state
-                // alpha_t+1(j) = \sum_{i=0}^N alpha_t(i)a_{ij} ...
-                newContrib = logForward[i][o-1] + m.mLogTransitions[i][j];
+                // alpha_t+1(j) = sum_{i=0}^N alpha_t(i)a_{ij} ...
                 logForward[j][o] = sum_logarithms(logForward[j][o],
-                    newContrib);
+                    logForward[i][o-1] + m.mLogTransitions[i][j]);
             }
             // ... b_{j}(O_{t+1})
             logForward[j][o] += m.mStates[j].distribution().pdf(obs[o]);
@@ -137,39 +129,129 @@ real_t evaluation_prob(Model& m, vector<real_t>& obs, bool verbose){
     }
 
     // termination
-    real_t logEvaluation = -inf;// TODO: result should be initialized at -Inf
+    real_t logEvaluation = -inf;
     for(int i = 0; i < m.mStates.size(); i++){
-        logEvaluation = sum_logarithms(logEvaluation, logForward[i][obs.size()-1]);
+        logEvaluation = sum_logarithms(logEvaluation,
+            logForward[i][obs.size()-1]);
     }
 
+    // print results
     if(verbose){
-        cout << "logForward: " << endl;
-        if(obs.size() <= 6){
-            for(int o = 0; o < obs.size(); o++){
-                cout << "[";
-                for(int j = 0; j < m.mStates.size(); j++){
-                    cout << logForward[j][o] << " ";
+        printMatrixSummary(logForward, m.mStates.size(), obs.size(),
+            "logForward", false);
+        cout << "ObservationSequence LogProbability: " << logEvaluation << endl;
+    }
+
+    for(int i = 0; i < m.mStates.size(); i++)
+        delete[] logForward[i];
+    delete[] logForward;
+}
+
+
+/**
+* Solve the evaluation problem through the forward algorithm.
+* Currently write the obtained path in results/wahmm_viterbi.
+* If verbose it prints the Viterbi matrix.
+*
+* @param m the model
+* @param obs the observation sequence
+* @param verbose if true prints result informations
+*/
+void decoding_prob(Model &m, vector<real_t>& obs, bool verbose){
+    real_t **logViterbi, **statesViterbi;
+    logViterbi = new real_t*[m.mStates.size()];
+    statesViterbi = new real_t*[m.mStates.size()];
+
+    if(verbose)
+        cout << "+++++ Decoding Problem +++++" << endl;
+
+    // initialization
+    for(int i = 0; i < m.mStates.size(); i++){
+        logViterbi[i] = new real_t[obs.size()];
+        statesViterbi[i] = new real_t[obs.size()];
+        // delta_0(i) = pi_i * b_i(O_1)
+        logViterbi[i][0] = m.mInitialDistribution[i] + m.mStates[i]
+            .distribution().pdf(obs[0]);
+        // psi_0(i) = 0
+        statesViterbi[i][0] = -1;
+    }
+
+    // induction
+    real_t currentMax = -inf;
+    real_t currentSum = 0;
+    size_t currentState = -1;
+    for(int o = 1; o < obs.size(); o++){ // observations
+        for(int j = 0; j < m.mStates.size(); j++)
+            logViterbi[j][o] = -inf;
+        for(int j = 0; j < m.mStates.size(); j++){ // arriving state
+            // delta_t(j) = max_{1<=i<=N} delta_{t-1}(i)a_{ij} ...
+            for(int i = 0; i < m.mStates.size(); i++){ // starting state
+                currentSum = logViterbi[i][o-1] + m.mLogTransitions[i][j];
+                if(currentSum > currentMax){
+                    currentMax = currentSum;
+                    currentState = i;
                 }
-                cout << "]" << endl;
             }
-        }
-        else{
-            cout << "[" << logForward[0][0] << " ";
-            cout << logForward[1][0] << "]" << endl;
-            cout << "[" << logForward[0][1] << " ";
-            cout << logForward[1][1] << "]" << endl;
-            cout << "..." << endl;
-            cout << "[" << logForward[0][obs.size()-3] << " ";
-            cout << logForward[1][obs.size()-3] << "]" << endl;
-            cout << "[" << logForward[0][obs.size()-2] << " ";
-            cout << logForward[1][obs.size()-2] << "]" << endl;
-            cout << "[" << logForward[0][obs.size()-1] << " ";
-            cout << logForward[1][obs.size()-1] << "]" << endl;
-        }
-        if(logForward[0][obs.size()-1] == logForward[1][obs.size()-1]){
-            cout << "ATTENTION! last items are equal" << endl;
+            // ... b_{j}(O_{t})
+            logViterbi[j][o] = currentMax + m.mStates[j]
+                .distribution().pdf(obs[o]);
+            // psi_t(j) = argmax[...]
+            statesViterbi[j][o] = currentState;
+            // re-initialize max variables for next loop
+            currentMax = -inf;
+            currentState = -1;
         }
     }
 
-    return logEvaluation;
+    // termination
+    real_t logDecoding;
+    list<size_t> viterbiPath;
+    currentMax = -inf; // this will contain the log probability of the path
+    currentState = -1;
+    for(int i = 0; i < m.mStates.size(); i++){
+        if(logViterbi[i][obs.size()-1] > currentMax){
+            currentMax = logViterbi[i][obs.size()-1];
+            currentState = i;
+        }
+    }
+
+    viterbiPath.push_front(currentState);
+    for(int o = obs.size()-2; o >= 0; o--){
+        // if currentState == -1, impossible path? can it happen?
+        if(currentState >= 0)
+            currentState = statesViterbi[currentState][o + 1];
+        viterbiPath.push_front(currentState);
+    }
+
+    // print results
+    if(verbose){
+        printMatrixSummary(logViterbi, m.mStates.size(), obs.size(),
+            "logViterbi", false);
+        cout << "Most likely path: " << endl;
+        int i = 0;
+        for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
+            // only print first 5 and last 5 states
+            if(i == 5)
+                cout << "... ";
+            if(i >= 5 && i < viterbiPath.size() - 5)
+                continue;
+            cout << *it << " ";
+        }
+        cout << endl;
+        cout << "Path logProbability: " << currentMax << endl;
+    }
+
+    // print to file for comparison with other implementations
+    std::ofstream ofs ("results/wahmm_viterbi", std::ofstream::out);
+    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++)
+        ofs << *it << " ";
+    ofs.close();
+
+
+    for(int i = 0; i < m.mStates.size(); i++){
+        delete[] logViterbi[i];
+        delete[] statesViterbi[i];
+    }
+    delete[] logViterbi;
+    delete[] statesViterbi;
 }

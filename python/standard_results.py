@@ -3,8 +3,8 @@ import numpy as np
 
 # Example: create model with two states
 model = pm.HiddenMarkovModel("Two-states HMM")
-s1 = pm.State(pm.NormalDistribution(0, 5), name="0")
-s2 = pm.State(pm.NormalDistribution(10, 5), name="1")
+s1 = pm.State(pm.NormalDistribution(0, 1), name="0")
+s2 = pm.State(pm.NormalDistribution(10, 1), name="1")
 model.add_states([s1, s2])
 model.add_transition(model.start, s1, 1.0)
 model.add_transition(s1, s1, 0.5)
@@ -54,18 +54,18 @@ for p in predicted_path[1:]:
 viterbi_file.close()
 
 # # problem 3 : expectation maximization, baum-welch
-# predicted_model = pm.HiddenMarkovModel("Predicted HMM")
-# sp1 = pm.State(pm.NormalDistribution(0, 5), name="PState 1")
-# sp2 = pm.State(pm.NormalDistribution(30, 10), name="PState 2")
-# predicted_model.add_states([sp1, sp2])
-# predicted_model.add_transition(predicted_model.start, sp1, 1.0)
-# predicted_model.add_transition(sp1, sp1, 0.3)
-# predicted_model.add_transition(sp2, sp1, 0.7)
-# predicted_model.add_transition(sp1, sp2, 0.7)
-# predicted_model.add_transition(sp2, sp2, 0.3)
-# predicted_model.bake()
-#
-# predicted_model.fit(list([np.array(observations)]))
-# # edges in json have the following format:
-# # - (start node, end node, probability, pseudocount, label)
-# # print(predicted_model.to_json())
+predicted_model = pm.HiddenMarkovModel("Predicted HMM")
+sp1 = pm.State(pm.NormalDistribution(0, 5), name="PState 1")
+sp2 = pm.State(pm.NormalDistribution(30, 10), name="PState 2")
+predicted_model.add_states([sp1, sp2])
+predicted_model.add_transition(predicted_model.start, sp1, 1.0)
+predicted_model.add_transition(sp1, sp1, 0.3)
+predicted_model.add_transition(sp2, sp1, 0.7)
+predicted_model.add_transition(sp1, sp2, 0.7)
+predicted_model.add_transition(sp2, sp2, 0.3)
+predicted_model.bake()
+
+predicted_model.fit(list([np.array(observations)]))
+# edges in json have the following format:
+# - (start node, end node, probability, pseudocount, label)
+print(predicted_model.to_json())

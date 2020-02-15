@@ -43,20 +43,20 @@ void Model::printModel(){
         cout << " | StdDev: " << s.distribution().stdDev();
         cout << endl;
     }
-    cout << "++++++++++" << endl;
+    cout << "----------" << endl;
     cout << "Transitions: " << endl;
     for(int i = 0; i < mStates.size(); i++){
         for(int j = 0; j < mStates.size(); j++)
-            cout << mLogTransitions[i][j] << " ";
+            cout << exp(mLogTransitions[i][j]) << " ";
         cout << endl;
     }
-    cout << "++++++++++" << endl;
+    cout << "----------" << endl;
     cout << "Initial Distribution: " << endl;
     for(int i = 0; i < mStates.size(); i++)
         // if(mInitialDistribution[i] == -inf)
         //     cout << "-inf ";
         // else
-        cout << mInitialDistribution[i] << " ";
+        cout << exp(mInitialDistribution[i]) << " ";
     cout << endl;
-    cout << "++++++++++" << endl;
+    cout << "----------" << endl;
 }

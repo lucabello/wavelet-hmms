@@ -1,3 +1,5 @@
+#ifndef WAHMM_UTILITIES_HPP
+#define WAHMM_UTILITIES_HPP
 #include <iostream>
 #include "includes.hpp"
 
@@ -20,6 +22,13 @@ real_t sum_logarithms(real_t a, real_t b){
     if(a > b)
         return a + log(exp(b-a) + 1);
     return b + log(exp(a-b) + 1);
+}
+
+/** Free a matrix of real_t with 'rows' rows. */
+void freeMatrix(real_t** m, size_t rows){
+    for(int i = 0; i < rows; i++)
+        delete[] m[i];
+    delete[] m;
 }
 
 /**
@@ -106,3 +115,5 @@ void printMatrixSummary(real_t **m, size_t rows, size_t cols,
         }
     }
 }
+
+#endif

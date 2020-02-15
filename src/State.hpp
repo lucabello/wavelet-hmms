@@ -20,6 +20,7 @@ public:
     std::string name();
     NormalDistribution distribution();
     size_t id();
+    void setDistribution(NormalDistribution d);
 };
 
 size_t State::idCounter = 0;
@@ -40,4 +41,8 @@ std::string State::name(){
 
 NormalDistribution State::distribution(){
     return mDistribution;
+}
+
+void State::setDistribution(NormalDistribution d){
+    mDistribution = d;
 }

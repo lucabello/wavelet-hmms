@@ -78,6 +78,41 @@ real_t** forward_matrix(Model& m, vector<real_t>& obs){
     return logForward;
 }
 
+/**
+* Compute the forward backward given a model and an observations sequence.
+*
+* @param m the model
+* @param obs the observation sequence
+*/
+real_t** backward_matrix(Model& m, vector<real_t>& obs){
+    real_t **logBackward;
+    logBackward = new real_t*[m.mStates.size()]; // forward variables
+
+    // initialization
+    for(int i = 0; i < m.mStates.size(); i++){
+        logBackward[i] = new real_t[obs.size()];
+        // beta_T(i) = 1
+        logBackward[i][obs.size()-1] = 0;
+    }
+
+    // induction
+    for(int t = obs.size()-2; t >= 0; t--){ // observations
+        for(int j = 0; j < m.mStates.size(); j++)
+            logBackward[j][t] = -inf;
+        for(int i = 0; i < m.mStates.size(); i++){ // arriving state
+            for(int j = 0; j < m.mStates.size(); j++){ // starting state
+                // beta_t(i) = sum_{j=1}^N a_{ij} b_j(O_{t+1}) beta_{t+1}(j)
+                logBackward[i][t] = sum_logarithms(logBackward[i][t],
+                    m.mLogTransitions[i][j] +
+                    m.mStates[j].distribution().pdf(obs[t+1]) +
+                    logBackward[j][t+1]);
+            }
+        }
+    }
+
+    return logBackward;
+}
+
 
 /**
 * Solve the evaluation problem through the forward algorithm.
@@ -200,24 +235,30 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
 * so it's simplified and not included at all.
 * For the backward variable, two arrays are needed, for beta_t and beta_{t+1}.
 * For this reason, use two arrays and swap them at each time step.
+
+// the reestimation of the average requires calculating log(obs[t]);
+// to avoid negative observations, translate the sequence (only when
+// performing that computation) so the minimum obsevation is zero.
+//
+// Actually, translate so that the sequence ranges from [1, inf) because
+// zero could be represented as -0.0000000000001 and it would make the log
+// function crash.
+
+@returns the logEvaluation P(O|lambda) of the previous model
+
 */
-void training_problem(Model& m, vector<real_t>& obs){
-    real_t **logEpsilon; // eps_t(i,j), accumulator over all t
-    real_t **logForward; // forward matrix
-    real_t *logBackward = new real_t[m.mStates.size()]; // only current t
-    real_t *prevLogBackward = new real_t[m.mStates.size()];
-    real_t *logPi = new real_t[m.mStates.size()]; // computed at last
-    real_t *logGamma = new real_t[m.mStates.size()]; // computed at last
-    real_t *currentGamma = new real_t[m.mStates.size()]; // only current t
-    real_t *logAverage = new real_t[m.mStates.size()]; // one for each state
-    real_t *logVariance = new real_t[m.mStates.size()]; // one for each state
+real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
+    real_t **logEpsilon, real_t *logBackward,
+    real_t *prevLogBackward, real_t *logPi, real_t *logGamma,
+    real_t *currentGamma, real_t *logAverage, real_t *logVariance){
+
     real_t logEvaluation; // P(O|lambda)
+    real_t **logForward; // forward matrix
+    size_t numberOfStates = m.mStates.size();
 
     // initialization
-    logEpsilon = new real_t*[m.mStates.size()];
-    for(size_t i = 0; i < m.mStates.size(); i++){
-        logEpsilon[i] = new real_t[m.mStates.size()];
-        for(size_t j = 0; j < m.mStates.size(); j++)
+    for(size_t i = 0; i < numberOfStates; i++){
+        for(size_t j = 0; j < numberOfStates; j++)
             logEpsilon[i][j] = -inf;
         logBackward[i] = 0;
         prevLogBackward[i] = 0;
@@ -227,45 +268,30 @@ void training_problem(Model& m, vector<real_t>& obs){
     }
     logForward = forward_matrix(m, obs);
     logEvaluation = -inf;
-    for(size_t i = 0; i < m.mStates.size(); i++){
+    for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
     }
-    // the reestimation of the average requires calculating log(obs[t]);
-    // to avoid negative observations, translate the sequence (only when
-    // performing that computation) so the minimum obsevation is zero.
-    //
-    // Actually, translate so that the sequence ranges from [1, inf) because
-    // zero could be represented as -0.0000000000001 and it would make the log
-    // function crash.
-    // NOTE: now this is done at every call, super inefficient, update the
-    //     model class to store it inside it
-    real_t minObs = 0;
-    for(auto it = obs.begin(); it != obs.end(); it++){
-        if(*it < minObs)
-            minObs = *it;
-    }
-    minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
-
 
     // start from T-1
     for(int t = obs.size()-2; t >= 0; t--){
         //cout << "[Debug] Starting observation " << t << endl;
         // calculate backward variable for the next iteration
         real_t currentSum;
-        for(int i = 0; i < m.mStates.size(); i++){
+        for(int i = 0; i < numberOfStates; i++){
             logBackward[i] = -inf;
-            for(size_t j = 0; j < m.mStates.size(); j++){
+            for(size_t j = 0; j < numberOfStates; j++){
                 currentSum = m.mLogTransitions[i][j] +
                     m.mStates[j].distribution().pdf(obs[t+1]) +
                     prevLogBackward[j];
                 logBackward[i] = sum_logarithms(logBackward[i], currentSum);
             }
-            // cout << "[Debug] Backward(i=" << i << ") computed " << endl;
+
         }
+        //cout << "[Debug] Backward("<<t<<") = "<< logBackward[0] << "," << logBackward[1] << endl;
         //cout << "[Debug] Backward variable computed " << endl;
         // calculate epsilon and increase estimates for observation t
-        for(size_t i = 0; i < m.mStates.size(); i++){
+        for(size_t i = 0; i < numberOfStates; i++){
             for(size_t j = 0; j < m.mStates.size(); j++){
                 logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
                     logForward[i][t] + m.mLogTransitions[i][j] +
@@ -280,14 +306,12 @@ void training_problem(Model& m, vector<real_t>& obs){
             logGamma[i] = sum_logarithms(logGamma[i], currentGamma[i]);
             logAverage[i] = sum_logarithms(logAverage[i],
                 currentGamma[i] + log(obs[t]-minObs));
+            // logVariance[i] = sum_logarithms(logVariance[i],
+            //     currentGamma[i] + log( pow(obs[t] - m.mStates[i]
+            //     .distribution().mean(),2) ));
             logVariance[i] = sum_logarithms(logVariance[i],
-                currentGamma[i] + log( pow(obs[t] - m.mStates[i]
-                .distribution().mean(),2) ));
-            // cout << "[" << t << "," << i << "] cG=" << currentGamma[i] << " ";
-            // cout << "lG=" << logGamma[i] << " ";
-            // cout << "lA=" << logAverage[i] << " ";
-            // cout << "lV=" << logVariance[i] << " ";
-            // cout << endl;
+                currentGamma[i] + 2*log( abs(obs[t] - m.mStates[i]
+                .distribution().mean()) ));
         }
         real_t *tmp;
         // to avoid copying the array
@@ -297,7 +321,7 @@ void training_problem(Model& m, vector<real_t>& obs){
     }
 
     // compute final reestimated parameters
-    for(size_t i = 0; i < m.mStates.size(); i++){
+    for(size_t i = 0; i < numberOfStates; i++){
         logPi[i] = currentGamma[i] - logEvaluation; // pi_i = gamma_1(i)
         for(size_t j = 0; j < m.mStates.size(); j++){
             logEpsilon[i][j] -= logGamma[i]; // a_{ij}
@@ -307,27 +331,67 @@ void training_problem(Model& m, vector<real_t>& obs){
     }
 
     // update parameters in the model
-    size_t nStates = m.mStates.size();
-    for(size_t i = 0; i < nStates; i++){
+    for(size_t i = 0; i < numberOfStates; i++){
         m.mInitialDistribution[i] = logPi[i];
-        for(size_t j = 0; j < nStates; j++){
+        for(size_t j = 0; j < numberOfStates; j++){
             m.mLogTransitions[i][j] = logEpsilon[i][j];
         }
         m.mStates[i].setDistribution(NormalDistribution(
             exp(logAverage[i])+minObs, sqrt(exp(logVariance[i]))));
     }
 
+    cout << "[Debug] Variances: "<<exp(logVariance[0])<<","<<exp(logVariance[1])<<endl;
+    freeMatrix(logForward, numberOfStates);
+
+    return logEvaluation;
+}
+
+
+void training_problem_wrapper(Model& m, vector<real_t>& obs, real_t thresh,
+    size_t maxIterations){
+
+    real_t **logEpsilon; // eps_t(i,j), accumulator over all t
+    real_t *logBackward = new real_t[m.mStates.size()]; // only current t
+    real_t *prevLogBackward = new real_t[m.mStates.size()];
+    real_t *logPi = new real_t[m.mStates.size()]; // computed at last
+    real_t *logGamma = new real_t[m.mStates.size()]; // computed at last
+    real_t *currentGamma = new real_t[m.mStates.size()]; // only current t
+    real_t *logAverage = new real_t[m.mStates.size()]; // one for each state
+    real_t *logVariance = new real_t[m.mStates.size()]; // one for each state
+
+    logEpsilon = new real_t*[m.mStates.size()];
+    for(size_t i = 0; i < m.mStates.size(); i++){
+        logEpsilon[i] = new real_t[m.mStates.size()];
+    }
+
+
+    real_t minObs = 0;
+    for(auto it = obs.begin(); it != obs.end(); it++){
+        if(*it < minObs)
+            minObs = *it;
+    }
+    minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
+    real_t evaluation=-inf, newEvaluation=-inf;
+    real_t logImprovement = thresh + 1;
+    size_t iter;
+    for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
+        newEvaluation = training_problem(m, obs, minObs,
+            logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
+            currentGamma, logAverage, logVariance);
+        cout << "newEvaluation: " << newEvaluation << endl;
+        logImprovement = newEvaluation - evaluation;
+        evaluation = newEvaluation;
+        m.printModel();
+    }
+    cout << "Number of iterations: " << iter << endl;
+
+
     // free variables
     freeMatrix(logEpsilon, m.mStates.size());
-    freeMatrix(logForward, m.mStates.size());
-    delete[] logBackward;
-    delete[] prevLogBackward;
     delete[] logPi;
     delete[] logGamma;
-    delete[] currentGamma;
     delete[] logAverage;
     delete[] logVariance;
-
 }
 
 #endif

@@ -5,6 +5,7 @@
 #include "algorithms.hpp"
 
 int main(int argc, const char* argv[]){
+    cout.precision(8);
     cout << std::scientific; // print numbers with scientific notation
 
     std::string obsFile("data/observations");
@@ -78,8 +79,8 @@ int main(int argc, const char* argv[]){
     // Try to solve the third problem
     cout << "+++++ Training Problem +++++" << endl;
     // Define a starting estimate of the model
-    State es0(NormalDistribution(5, 1), "State 0");
-    State es1(NormalDistribution(15, 1), "State 1");
+    State es0(NormalDistribution(0, 5), "State 0");
+    State es1(NormalDistribution(30, 10), "State 1");
     vector<State> estates;
     estates.push_back(es0);
     estates.push_back(es1);
@@ -87,21 +88,17 @@ int main(int argc, const char* argv[]){
     elogTrans = new real_t*[2];
     elogTrans[0] = new real_t[2];
     elogTrans[1] = new real_t[2];
-    elogTrans[0][0] = log(0.5);
-    elogTrans[0][1] = log(0.5);
-    elogTrans[1][0] = log(0.5);
-    elogTrans[1][1] = log(0.5);
+    elogTrans[0][0] = log(0.3);
+    elogTrans[0][1] = log(0.7);
+    elogTrans[1][0] = log(0.7);
+    elogTrans[1][1] = log(0.3);
     vector<real_t> einitDist;
     einitDist.push_back(0.0);
     einitDist.push_back(-inf);
     Model estimate_model(estates, elogTrans, einitDist);
 
-    estimate_model.printModel();
-    for(size_t iterations = 0; iterations < 10; iterations++)
-        training_problem(estimate_model, observations);
-    estimate_model.printModel();
-
-
+    training_problem_wrapper(estimate_model, observations, 1e-9, 1);
+    //estimate_model.printModel();
 
     /*
     Memorizing the file two times is too much and causes segmentation fault.

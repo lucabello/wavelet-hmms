@@ -309,9 +309,19 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
             // logVariance[i] = sum_logarithms(logVariance[i],
             //     currentGamma[i] + log( pow(obs[t] - m.mStates[i]
             //     .distribution().mean(),2) ));
-            logVariance[i] = sum_logarithms(logVariance[i],
-                currentGamma[i] + 2*log( abs(obs[t] - m.mStates[i]
-                .distribution().mean()) ));
+            logVariance[i] = sum_logarithms( logVariance[i],
+                currentGamma[i] + 2*log(std::abs(obs[t] - m.mStates[i]
+                .distribution().mean())) );
+            // cout << "[Debug] obs["<<t<<"]: " << obs[t] << endl;
+            // cout << "[Debug] mean["<<i<<"]: " << m.mStates[i].distribution().mean() << endl;
+            // cout << "[Debug] abs(diff): " << std::abs(obs[t] - m.mStates[i].distribution().mean()) << endl;
+            // cout << "[Debug] log(abs(diff))" << log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
+            // cout << "[Debug] currentGamma["<<i<<"]: " << currentGamma[i] << endl;
+            // cout << "[Debug] 2log["<<i<<"]: " << 2*log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
+            // cout << "[Debug] newElem["<<i<<"]: " << currentGamma[i] - logEvaluation + 2*log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
+            // cout << "[Debug] numLogVariance["<<i<<"]: " << logVariance[i] << endl;
+            // cout << "[Debug] futureLogVariance["<<i<<"]: " << logVariance[i] - logGamma[i] + logEvaluation << endl;
+            // cout << "================================" << endl;
         }
         real_t *tmp;
         // to avoid copying the array
@@ -339,8 +349,9 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
         m.mStates[i].setDistribution(NormalDistribution(
             exp(logAverage[i])+minObs, sqrt(exp(logVariance[i]))));
     }
-
+    cout << "[Debug] logVariances: "<<logVariance[0]<<","<<logVariance[1]<<endl;
     cout << "[Debug] Variances: "<<exp(logVariance[0])<<","<<exp(logVariance[1])<<endl;
+    cout << "[Debug] Expected Variances: 19.18,4.29" << endl;
     freeMatrix(logForward, numberOfStates);
 
     return logEvaluation;

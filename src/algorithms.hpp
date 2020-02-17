@@ -248,9 +248,9 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
 
 */
 real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
-    real_t **logEpsilon, real_t *logBackward,
-    real_t *prevLogBackward, real_t *logPi, real_t *logGamma,
-    real_t *currentGamma, real_t *logAverage, real_t *logVariance){
+    real_t **logEpsilon, real_t *logBackward, real_t *prevLogBackward,
+    real_t *logPi, real_t **logGamma, real_t *logGammaSum,
+    real_t *logAverage, real_t *logVariance){
 
     real_t logEvaluation; // P(O|lambda)
     real_t **logForward; // forward matrix
@@ -262,7 +262,7 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
             logEpsilon[i][j] = -inf;
         logBackward[i] = 0;
         prevLogBackward[i] = 0;
-        logGamma[i] = -inf;
+        logGammaSum[i] = -inf;
         logAverage[i] = -inf;
         logVariance[i] = -inf;
     }
@@ -301,17 +301,18 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
             }
             // calculate gamma_t(i) for the current t
             // logBackward is beta_t
-            currentGamma[i] = logForward[i][t] + logBackward[i];
+            logGamma[i][t] = logForward[i][t] + logBackward[i];
+            //cout << "logGamma["<<i<<"]["<<t<<"] = "<<logGamma[i][t] << endl; // debug
+            logGammaSum[i] = sum_logarithms(logGammaSum[i], logGamma[i][t]);
             // update the accumulators
-            logGamma[i] = sum_logarithms(logGamma[i], currentGamma[i]);
             logAverage[i] = sum_logarithms(logAverage[i],
-                currentGamma[i] + log(obs[t]-minObs));
+                logGamma[i][t] + log(obs[t]-minObs));
             // logVariance[i] = sum_logarithms(logVariance[i],
             //     currentGamma[i] + log( pow(obs[t] - m.mStates[i]
             //     .distribution().mean(),2) ));
-            logVariance[i] = sum_logarithms( logVariance[i],
-                currentGamma[i] + 2*log(std::abs(obs[t] - m.mStates[i]
-                .distribution().mean())) );
+            // logVariance[i] = sum_logarithms( logVariance[i],
+            //     currentGamma[i] + 2*log(std::abs(obs[t] - m.mStates[i]
+            //     .distribution().mean())) );
             // cout << "[Debug] obs["<<t<<"]: " << obs[t] << endl;
             // cout << "[Debug] mean["<<i<<"]: " << m.mStates[i].distribution().mean() << endl;
             // cout << "[Debug] abs(diff): " << std::abs(obs[t] - m.mStates[i].distribution().mean()) << endl;
@@ -329,15 +330,21 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
         logBackward = prevLogBackward;
         prevLogBackward = tmp;
     }
-
+    // = sum_logarithms(logGamma[i], currentGamma[i]);
     // compute final reestimated parameters
+    real_t currentNewAverage;
     for(size_t i = 0; i < numberOfStates; i++){
-        logPi[i] = currentGamma[i] - logEvaluation; // pi_i = gamma_1(i)
         for(size_t j = 0; j < m.mStates.size(); j++){
-            logEpsilon[i][j] -= logGamma[i]; // a_{ij}
+            logEpsilon[i][j] -= logGammaSum[i]; // a_{ij}
         }
-        logAverage[i] -= logGamma[i]; // mu_j
-        logVariance[i] -= logGamma[i]; // sigma^2_j
+        logPi[i] = logGamma[i][0] - logEvaluation; // pi_i = gamma_1(i)
+        logAverage[i] -= logGammaSum[i];
+        currentNewAverage = exp(logAverage[i])+minObs;
+        for(size_t t = 0; t < obs.size()-1; t++){
+            logVariance[i] = sum_logarithms(logVariance[i],
+                logGamma[i][t] + 2*log(abs(obs[t] - currentNewAverage)));
+        }
+        logVariance[i] -= logGammaSum[i];
     }
 
     // update parameters in the model
@@ -349,9 +356,6 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
         m.mStates[i].setDistribution(NormalDistribution(
             exp(logAverage[i])+minObs, sqrt(exp(logVariance[i]))));
     }
-    cout << "[Debug] logVariances: "<<logVariance[0]<<","<<logVariance[1]<<endl;
-    cout << "[Debug] Variances: "<<exp(logVariance[0])<<","<<exp(logVariance[1])<<endl;
-    cout << "[Debug] Expected Variances: 19.18,4.29" << endl;
     freeMatrix(logForward, numberOfStates);
 
     return logEvaluation;
@@ -365,14 +369,16 @@ void training_problem_wrapper(Model& m, vector<real_t>& obs, real_t thresh,
     real_t *logBackward = new real_t[m.mStates.size()]; // only current t
     real_t *prevLogBackward = new real_t[m.mStates.size()];
     real_t *logPi = new real_t[m.mStates.size()]; // computed at last
-    real_t *logGamma = new real_t[m.mStates.size()]; // computed at last
-    real_t *currentGamma = new real_t[m.mStates.size()]; // only current t
+    real_t **logGamma;
+    real_t *logGammaSum = new real_t[m.mStates.size()];
     real_t *logAverage = new real_t[m.mStates.size()]; // one for each state
     real_t *logVariance = new real_t[m.mStates.size()]; // one for each state
 
     logEpsilon = new real_t*[m.mStates.size()];
+    logGamma = new real_t*[m.mStates.size()];
     for(size_t i = 0; i < m.mStates.size(); i++){
         logEpsilon[i] = new real_t[m.mStates.size()];
+        logGamma[i] = new real_t[obs.size()-1];
     }
 
 
@@ -388,19 +394,20 @@ void training_problem_wrapper(Model& m, vector<real_t>& obs, real_t thresh,
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
         newEvaluation = training_problem(m, obs, minObs,
             logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
-            currentGamma, logAverage, logVariance);
-        cout << "newEvaluation: " << newEvaluation << endl;
+            logGammaSum, logAverage, logVariance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
-        m.printModel();
     }
     cout << "Number of iterations: " << iter << endl;
 
 
     // free variables
     freeMatrix(logEpsilon, m.mStates.size());
+    freeMatrix(logGamma, m.mStates.size());
+    delete[] logBackward;
+    delete[] prevLogBackward;
     delete[] logPi;
-    delete[] logGamma;
+    delete[] logGammaSum;
     delete[] logAverage;
     delete[] logVariance;
 }

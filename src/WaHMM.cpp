@@ -72,12 +72,10 @@ int main(int argc, const char* argv[]){
         cout << " success!" << endl;
 
     // Try to solve the first prolem
-    evaluation_problem(model, observations, verboseForward);
+    //evaluation_problem(model, observations, verboseForward);
     // Try to solve the second problem
-    decoding_problem(model, observations, verboseViterbi);
+    //decoding_problem(model, observations, verboseViterbi);
 
-    // Try to solve the third problem
-    cout << "+++++ Training Problem +++++" << endl;
     // Define a starting estimate of the model
     State es0(NormalDistribution(0, 5), "State 0");
     State es1(NormalDistribution(30, 10), "State 1");
@@ -97,8 +95,10 @@ int main(int argc, const char* argv[]){
     einitDist.push_back(-inf);
     Model estimate_model(estates, elogTrans, einitDist);
 
-    training_problem_wrapper(estimate_model, observations, 1e-9, 1);
-    //estimate_model.printModel();
+    // Try to solve the third problem
+    cout << "+++++ Training Problem +++++" << endl;
+    training_problem_wrapper(estimate_model, observations, 1e-9, 100);
+    estimate_model.printModel();
 
     /*
     Memorizing the file two times is too much and causes segmentation fault.

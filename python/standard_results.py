@@ -25,6 +25,7 @@ for line in in_file:
 # To compare log probabilities, you can consider the ratio between them:
 # specifically, with two states we can see that:
 #     prob_1/prob_2 = exp(log(prob_1) - log(prob_2))
+#---------------------------------------------------------------
 print("----- Evaluation Problem -----")
 forward_result = model.forward(observations)
 print(forward_result)
@@ -40,6 +41,7 @@ print("P(O|lambda):", evaluation_result)
 #     if state_path[i] != predicted_path[1][i][1]:
 #         error_count += 1
 # # print(error_count)
+#---------------------------------------------------------------
 print("----- Decoding Problem -----")
 logp_path, predicted_path = model.viterbi(observations)
 predicted_path = model.predict(observations, "viterbi")
@@ -54,6 +56,8 @@ for p in predicted_path[1:]:
 viterbi_file.close()
 
 # # problem 3 : expectation maximization, baum-welch
+#---------------------------------------------------------------
+print("----- Training Problem -----")
 predicted_model = pm.HiddenMarkovModel("Predicted HMM")
 sp1 = pm.State(pm.NormalDistribution(0, 5), name="PState 1")
 sp2 = pm.State(pm.NormalDistribution(30, 10), name="PState 2")
@@ -64,8 +68,9 @@ predicted_model.add_transition(sp2, sp1, 0.7)
 predicted_model.add_transition(sp1, sp2, 0.7)
 predicted_model.add_transition(sp2, sp2, 0.3)
 predicted_model.bake()
-
-predicted_model.fit(list([np.array(observations)]))
-# edges in json have the following format:
-# - (start node, end node, probability, pseudocount, label)
+#
+#-------------------------------------------------------------
+predicted_model.fit(list([np.array(observations)]),max_iterations=1,algorithm='baum-welch')
+# # edges in json have the following format:
+# # - (start node, end node, probability, pseudocount, label)
 print(predicted_model.to_json())

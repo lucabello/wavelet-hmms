@@ -20,14 +20,14 @@ public:
     Model();
     Model(const Model& that) = delete;
     Model(std::vector<State>& states, std::vector<wahmm::real_t>&relativeTr,
-        std::vector<wahmm::real_t>& logPi);
+        std::vector<wahmm::real_t>& relativePi);
     void printModel();
 };
 
 Model::Model(){}
 
 Model::Model(std::vector<State>& states, std::vector<wahmm::real_t>& relativeTr,
-    std::vector<wahmm::real_t>& logPi){
+    std::vector<wahmm::real_t>& relativePi){
     mStates = std::vector<State>(states);
     mLogTransitions = new wahmm::real_t*[states.size()];
     wahmm::real_t rowSum;
@@ -39,30 +39,34 @@ Model::Model(std::vector<State>& states, std::vector<wahmm::real_t>& relativeTr,
         for(int j = 0; j < states.size(); j++)
             mLogTransitions[i][j] = log(relativeTr[i*states.size() + j]) -
                 log(rowSum);
+        rowSum = 0;
+        for(int j = 0; j < states.size(); j++)
+            rowSum += relativePi[j];
+        mLogPi.push_back(log(relativePi[i]) - log(rowSum));
     }
-    mLogPi = std::vector<wahmm::real_t>(logPi);
 }
 
 void Model::printModel(){
+    std::cout << "----------" << std::endl;
     for(State s : mStates){
         cout << s.name();
         cout << " | Mean: " << s.mean();
         cout << " | StdDev: " << s.stdDev();
         cout << endl;
     }
-    cout << "----------" << endl;
-    cout << "Transitions: " << endl;
+    std::cout << "----------" << std::endl;
+    std::cout << "Transitions: " << std::endl;
     for(int i = 0; i < mStates.size(); i++){
         for(int j = 0; j < mStates.size(); j++)
-            cout << exp(mLogTransitions[i][j]) << " ";
-        cout << endl;
+            std::cout << exp(mLogTransitions[i][j]) << " ";
+        std::cout << std::endl;
     }
-    cout << "----------" << endl;
-    cout << "Initial Distribution: " << endl;
+    std::cout << "----------" << std::endl;
+    std::cout << "Initial Distribution: " << std::endl;
     for(int i = 0; i < mStates.size(); i++)
-        cout << exp(mLogPi[i]) << " ";
-    cout << endl;
-    cout << "----------" << endl;
+        std::cout << exp(mLogPi[i]) << " ";
+    std::cout << endl;
+    std::cout << "----------" << std::endl;
 }
 
 #endif

@@ -2,6 +2,7 @@
 #define WAHMM_UTILITIES_HPP
 #include <iostream>
 #include "commons.hpp"
+using wahmm::inf;
 
 /** Given (a = log(x) and b = log(y), returns log(x+y)) */
 wahmm::real_t sum_logarithms(wahmm::real_t a, wahmm::real_t b){

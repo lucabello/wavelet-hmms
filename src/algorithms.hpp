@@ -4,6 +4,7 @@
 #include "utilities.hpp"
 #include <list>
 using std::list;
+using wahmm::inf;
 
 void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose);
 wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
@@ -24,7 +25,7 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose)
     size_t numberOfStates = m.mStates.size();
 
     if(verbose)
-        cout << "+++++ Evaluation Problem +++++" << endl;
+        std::cout << "+++++ Evaluation Problem +++++" << std::endl;
 
     logForward = forward_matrix(m, obs); // initialization and induction
     // termination
@@ -38,7 +39,7 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose)
     if(verbose){
         printMatrixSummary(logForward, numberOfStates, obs.size(),
             "logForward", false);
-        cout << "log[ P(O|lambda) ] = " << logEvaluation << endl;
+        std::cout << "log[ P(O|lambda) ] = " << logEvaluation << std::endl;
     }
 
     freeMatrix(logForward, numberOfStates);
@@ -130,7 +131,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
     statesViterbi = new wahmm::real_t*[numberOfStates];
 
     if(verbose)
-        cout << "+++++ Decoding Problem +++++" << endl;
+        std::cout << "+++++ Decoding Problem +++++" << std::endl;
 
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
@@ -188,18 +189,18 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
     if(verbose){
         printMatrixSummary(logViterbi, numberOfStates, obs.size(),
             "logViterbi", false);
-        cout << "Most likely path: " << endl;
+        std::cout << "Most likely path: " << std::endl;
         int i = 0;
         for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
             // only print first 5 and last 5 states
             if(i == 5)
-                cout << "... ";
+                std::cout << "... ";
             if(i >= 5 && i < viterbiPath.size() - 5)
                 continue;
-            cout << *it << " ";
+            std::cout << *it << " ";
         }
-        cout << endl;
-        cout << "log[ P(Q|O,lambda) ] = " << currentMax << endl;
+        std::cout << std::endl;
+        std::cout << "log[ P(Q|O,lambda) ] = " << currentMax << std::endl;
     }
 
     // print to file for comparison with other implementations
@@ -240,7 +241,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
 wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t minObs,
     wahmm::real_t **logEpsilon, wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
-    wahmm::real_t *logAverage, wahmm::real_t *logVariance){
+    wahmm::real_t *logAverage, wahmm::real_t *logVariance, bool verbose){
 
     wahmm::real_t logEvaluation; // P(O|lambda)
     wahmm::real_t **logForward; // forward matrix
@@ -263,9 +264,6 @@ wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm:
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
     }
-    printMatrixSummary(logForward, numberOfStates, obs.size(),
-        "logForward", false);
-    cout <<  "log[ P(O|lambda) ] = " << logEvaluation << endl;
 
     // start from T-1
     for(int t = obs.size()-2; t >= 0; t--){
@@ -292,28 +290,10 @@ wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm:
             // calculate gamma_t(i) for the current t
             // logBackward is beta_t
             logGamma[i][t] = logForward[i][t] + logBackward[i];
-            // if(t < 10)
-            //     cout << "logGamma["<<i<<"]["<<t<<"] = "<<logGamma[i][t] << endl; // debug
             logGammaSum[i] = sum_logarithms(logGammaSum[i], logGamma[i][t]);
             // update the accumulators
             logAverage[i] = sum_logarithms(logAverage[i],
                 logGamma[i][t] + log(obs[t]-minObs));
-            // logVariance[i] = sum_logarithms(logVariance[i],
-            //     currentGamma[i] + log( pow(obs[t] - m.mStates[i]
-            //     .distribution().mean(),2) ));
-            // logVariance[i] = sum_logarithms( logVariance[i],
-            //     currentGamma[i] + 2*log(std::abs(obs[t] - m.mStates[i]
-            //     .distribution().mean())) );
-            // cout << "[Debug] obs["<<t<<"]: " << obs[t] << endl;
-            // cout << "[Debug] mean["<<i<<"]: " << m.mStates[i].distribution().mean() << endl;
-            // cout << "[Debug] abs(diff): " << std::abs(obs[t] - m.mStates[i].distribution().mean()) << endl;
-            // cout << "[Debug] log(abs(diff))" << log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
-            // cout << "[Debug] currentGamma["<<i<<"]: " << currentGamma[i] << endl;
-            // cout << "[Debug] 2log["<<i<<"]: " << 2*log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
-            // cout << "[Debug] newElem["<<i<<"]: " << currentGamma[i] - logEvaluation + 2*log(std::abs(obs[t] - m.mStates[i].distribution().mean())) << endl;
-            // cout << "[Debug] numLogVariance["<<i<<"]: " << logVariance[i] << endl;
-            // cout << "[Debug] futureLogVariance["<<i<<"]: " << logVariance[i] - logGamma[i] + logEvaluation << endl;
-            // cout << "================================" << endl;
         }
         // to avoid copying the array
         tmp = logBackward;
@@ -356,7 +336,7 @@ wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm:
 * Baum-Welch algorithm.
 */
 void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
-    size_t maxIterations){
+    size_t maxIterations, bool verbose){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
     wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
@@ -382,19 +362,25 @@ void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::
     }
     minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
     wahmm::real_t evaluation=-inf, newEvaluation=-inf;
-    real_t logImprovement = thresh + 1;
+    wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
+    if(verbose)
+        std::cout << "+++++ Training problem +++++" << std::endl;
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
         newEvaluation = training_problem(m, obs, minObs,
             logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
-            logGammaSum, logAverage, logVariance);
+            logGammaSum, logAverage, logVariance, verbose);
         // newEvaluation = training_problem_scaled(m, obs, minObs,
         //     logEpsilon, logPi, logGamma,
         //     logGammaSum, logAverage, logVariance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
     }
-    cout << "Number of iterations: " << iter << endl;
+    if(verbose){
+        std::cout << "Number of iterations: " << iter << std::endl;
+        m.printModel();
+    }
+
 
 
     // free variables

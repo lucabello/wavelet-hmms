@@ -1,96 +1,105 @@
+#include "parser.hpp"
 #include "commons.hpp"
-#include "Compressor.hpp"
+#include "State.hpp"
 #include "Model.hpp"
-#include "utilities.hpp"
 #include "algorithms.hpp"
 
 int main(int argc, const char* argv[]){
-    cout.precision(8);
-    cout << std::scientific; // print numbers with scientific notation
+    // std::string filename("data");
+    // Compressor comp(filename);
+    // comp.printAllBlocks();
+    //std::cout.precision(8);
+    //std::cout << std::scientific; // print numbers with scientific notation
+    auto result = parse(argc, argv);
 
-    std::string obsFile("data/observations");
-    std::string pathFile("data/path");
-    vector<wahmm::real_t> observations;
-    vector<size_t> statePath;
-    Model model;
-    bool verbose = true, verboseForward = true, verboseViterbi = true;
+    std::vector<State> states;
+    std::vector<wahmm::real_t> relTrans;
+    std::vector<wahmm::real_t> relPi;
+    std::vector<wahmm::real_t> observations;
+    std::vector<wahmm::real_t> statePath;
+    std::string fileObs, filePath;
+    bool evaluation = false, decoding = false, training = false;
+    bool verbose = false;
 
-    // Define the model
-    std::vector<State> states{State(0, 1, "State 0"), State(10, 1, "State 1")};
-    wahmm::real_t **relativeTransitions;
-    relativeTransitions = new wahmm::real_t*[2];
-    relativeTransitions[0] = new wahmm::real_t[2];
-    relativeTransitions[1] = new wahmm::real_t[2];
-    relativeTransitions[0][0] = 1;
-    relativeTransitions[0][1] = 1;
-    relativeTransitions[1][0] = 1;
-    relativeTransitions[1][1] = 1;
-    vector<wahmm::real_t> initDist{0.0, -inf};
-    model = Model(states, relativeTransitions, initDist);
+    // parsing arguments from command line
+    if(result.count("state")){
+        std::vector<double> stateParams = result["state"].as<std::vector<double>>();
+        wahmm::real_t mean, stdDev;
+        for(std::size_t i = 0; i < result.count("state"); i++){
+            mean = stateParams[i*2];
+            stdDev = stateParams[i*2 + 1];
+            states.push_back(State(mean, stdDev));
+        }
+    }
+    if(result.count("transitions")){
+        std::vector<double> transParams = result["transitions"].as<std::vector<double>>();
+        for(double d : transParams)
+            relTrans.push_back((wahmm::real_t)d);
+    }
+    if(result.count("initial")){
+        std::vector<double> logParams = result["initial"].as<std::vector<double>>();
+        for(double d : logParams)
+            relPi.push_back((wahmm::real_t)d);
+    }
+    if(result.count("obs")){
+        fileObs = result["obs"].as<std::string>();
+    }
+    if(result.count("path")){
+        filePath = result["path"].as<std::string>();
+    }
+    if(result.count("evaluation"))
+        evaluation = true;
+    if(result.count("decoding"))
+        decoding = true;
+    if(result.count("training"))
+        training = true;
+    if(result.count("verbose"))
+        verbose = true;
 
-    model.printModel();
+    // some input checks
+    if(states.size() != relPi.size()){
+        std::cerr << "[Error] Wrong initial distribution size" << std::endl;
+        return -1;
+    }
+    if(states.size()*states.size() != relTrans.size()){
+        std::cerr << "[Error] Wrong number of transition probabilities" << std::endl;
+    }
 
     // Read the file with input observations
-    std::ifstream obsFinput(obsFile);
-    if(obsFinput.is_open()){
+    std::ifstream obsFileInput(fileObs);
+    if(obsFileInput.is_open()){
         wahmm::real_t number;
-        while(obsFinput >> number){
+        while(obsFileInput >> number){
             observations.push_back(number);
         }
     } else {
-        cerr << "Cannot read file " + obsFile + " !" << endl;
+        std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
         return -1;
     }
-    obsFinput.close();
+    obsFileInput.close();
     // Read the file with input state path
-    ifstream pathFinput(pathFile);
-    if(pathFinput.is_open()){
+    ifstream pathFileInput(filePath);
+    if(pathFileInput.is_open()){
         wahmm::real_t number;
-        while(pathFinput >> number){
+        while(pathFileInput >> number){
             statePath.push_back(number);
         }
     } else {
-        cerr << "Cannot read file " + pathFile + " !" << endl;
+        std::cerr << "Cannot read file " + filePath + " !" << std::endl;
         return -1;
     }
-    pathFinput.close();
+    pathFileInput.close();
 
-    if(verbose)
-        cout << " success!" << endl;
+    Model model(states, relTrans, relPi);
+    model.printModel();
 
-    // Try to solve the first prolem
-    //evaluation_problem(model, observations, verboseForward);
-    // Try to solve the second problem
-    //decoding_problem(model, observations, verboseViterbi);
 
-    // Define a starting estimate of the model
-    Model estimate_model;
-    std::vector<State> estates{State(0, 1, "State 0"), State(10, 1, "State 1")};
-    wahmm::real_t **erelativeTransitions;
-    erelativeTransitions = new wahmm::real_t*[2];
-    erelativeTransitions[0] = new wahmm::real_t[2];
-    erelativeTransitions[1] = new wahmm::real_t[2];
-    erelativeTransitions[0][0] = 1;
-    erelativeTransitions[0][1] = 1;
-    erelativeTransitions[1][0] = 1;
-    erelativeTransitions[1][1] = 1;
-    vector<wahmm::real_t> einitDist{0.0, -inf};
-    estimate_model = Model(estates, erelativeTransitions, einitDist);
-
-    // Try to solve the third problem
-    evaluation_problem(estimate_model, observations, verboseForward);
-    cout << "+++++ Training Problem +++++" << endl;
-    training_problem_wrapper(estimate_model, observations, 1e-9, 100);
-
-    /*
-    estimate_model.printModel();
-    Memorizing the file two times is too much and causes segmentation fault.
-    Choose one between the uncompressed or compressed version when executing
-    the program.
-    */
-    std::string filename;
-    //compressor = Compressor(filename);
-    //compressor.printAllBlocks(); // debug check
+    if(evaluation)
+        evaluation_problem(model, observations, verbose);
+    if(decoding)
+        decoding_problem(model, observations, verbose);
+    if(training)
+        training_problem_wrapper(model, observations, 1e-9, 100, verbose);
 
     return 0;
 }

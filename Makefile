@@ -1,9 +1,8 @@
 CC = g++ -std=c++14
 
 HAMMLET_DIR = lib/HaMMLET/src
+LIB_DIR = lib/
+INC_FLAGS = -I$(HAMMLET_DIR) -I$(LIB_DIR)
 
-wahmm: ./src/WaHMM.cpp
-	$(CC) -o ./bin/WaHMM ./src/WaHMM.cpp -I$(HAMMLET_DIR)
-
-parser:
-	$(CC) -o ./bin/parserTest ./src/main.cpp -Ilib/ -fpermissive
+all: ./src/WaHMM.cpp
+	$(CC) -o ./bin/WaHMM ./src/WaHMM.cpp $(INC_FLAGS) -fpermissive

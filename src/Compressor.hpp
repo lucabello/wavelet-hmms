@@ -1,3 +1,7 @@
+#ifndef WAHMM_COMPRESSOR_HPP
+#define WAHMM_COMPRESSOR_HPP
+
+#include "includes.hpp"
 #include "Tags.hpp"
 #include "HMM.hpp"
 //#include "Emissions.hpp"
@@ -7,8 +11,8 @@
 #include "wavelet.hpp"
 //#include "StateSequence.hpp"
 #include "Statistics.hpp"
-#include "includes.hpp"
 #include "utils.hpp"
+#include "commons.hpp"
 
 class Compressor {
     /** Input observations values */
@@ -44,7 +48,7 @@ public:
     /** Return the size of the "current block". */
     size_t blockSize();
     /** Return the sum of the observations in the "current block". */
-    real_t blockSum();
+    double blockSum();
     /** Print start and end indexes of the "current block" alongside with its
     * size and the sum of the observation values in it; the format used is
     * [start,end) size - "Sum:" sum
@@ -97,6 +101,7 @@ Compressor::Compressor(std::string& f){
     }
 }
 
+
 Compressor::~Compressor(){
     delete mIntegralArray;
     delete mWaveletBlocks;
@@ -123,7 +128,7 @@ size_t Compressor::blockSize(){
     mWaveletBlocks->blockSize();
 }
 
-real_t Compressor::blockSum(){
+double Compressor::blockSum(){
     mIntegralArray->setStats(*mWaveletBlocks);
     return mIntegralArray->suffStat(0).sum(); // 0 is the dimension index
 }
@@ -142,3 +147,5 @@ void Compressor::printAllBlocks(){
     printBlockInfo();
     initForward();
 }
+
+#endif

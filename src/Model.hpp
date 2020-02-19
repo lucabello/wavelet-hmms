@@ -1,5 +1,8 @@
+#ifndef WAHMM_MODEL_HPP
+#define WAHMM_MODEL_HPP
+
 #include "State.hpp"
-#include "includes.hpp"
+#include "commons.hpp"
 
 /*
 This class should represent a Hidden Markov Model for the specific scope
@@ -11,36 +14,40 @@ solution of problem 3 to generate a Model on which apply problem 1 and 2.
 */
 class Model {
 public:
-    vector<State> mStates;
-    real_t **mLogTransitions;
-    vector<real_t> mInitialDistribution;
+    std::vector<State> mStates;
+    wahmm::real_t **mLogTransitions;
+    std::vector<wahmm::real_t> mLogPi;
     Model();
     Model(const Model& that) = delete;
-    Model(vector<State>& states, real_t **logTransitions,
-        vector<real_t>& initialDistribution);
-    size_t numberOfStates();
+    Model(std::vector<State>& states, std::vector<wahmm::real_t>&relativeTr,
+        std::vector<wahmm::real_t>& logPi);
     void printModel();
 };
 
 Model::Model(){}
 
-Model::Model(vector<State>& states, real_t **logTransitions,
-    vector<real_t>& initialDistribution){
-    mStates = vector<State>(states);
-    mLogTransitions = new real_t*[states.size()];
-    for(int i = 0; i < states.size(); i++)
-        mLogTransitions[i] = new real_t[states.size()];
-    for(int i = 0; i < states.size(); i++)
+Model::Model(std::vector<State>& states, std::vector<wahmm::real_t>& relativeTr,
+    std::vector<wahmm::real_t>& logPi){
+    mStates = std::vector<State>(states);
+    mLogTransitions = new wahmm::real_t*[states.size()];
+    wahmm::real_t rowSum;
+    for(int i = 0; i < states.size(); i++){
+        mLogTransitions[i] = new wahmm::real_t[states.size()];
+        rowSum = 0;
         for(int j = 0; j < states.size(); j++)
-            mLogTransitions[i][j] = logTransitions[i][j];
-    mInitialDistribution = vector<real_t>(initialDistribution);
+            rowSum += relativeTr[i*states.size() + j];
+        for(int j = 0; j < states.size(); j++)
+            mLogTransitions[i][j] = log(relativeTr[i*states.size() + j]) -
+                log(rowSum);
+    }
+    mLogPi = std::vector<wahmm::real_t>(logPi);
 }
 
 void Model::printModel(){
     for(State s : mStates){
         cout << s.name();
-        cout << " | Mean: " << s.distribution().mean();
-        cout << " | StdDev: " << s.distribution().stdDev();
+        cout << " | Mean: " << s.mean();
+        cout << " | StdDev: " << s.stdDev();
         cout << endl;
     }
     cout << "----------" << endl;
@@ -53,10 +60,9 @@ void Model::printModel(){
     cout << "----------" << endl;
     cout << "Initial Distribution: " << endl;
     for(int i = 0; i < mStates.size(); i++)
-        // if(mInitialDistribution[i] == -inf)
-        //     cout << "-inf ";
-        // else
-        cout << exp(mInitialDistribution[i]) << " ";
+        cout << exp(mLogPi[i]) << " ";
     cout << endl;
     cout << "----------" << endl;
 }
+
+#endif

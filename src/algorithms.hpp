@@ -1,13 +1,14 @@
 #ifndef WAHMM_ALGORITHMS_HPP
 #define WAHMM_ALGORITHMS_HPP
-#include "includes.hpp"
+#include "commons.hpp"
 #include "utilities.hpp"
 #include <list>
 using std::list;
 
-void evaluation_problem(Model& m, vector<real_t>& obs, bool verbose);
-real_t** forward_matrix(Model& m, vector<real_t>& obs);
-void decoding_problem(Model &m, vector<real_t>& obs, bool verbose);
+void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose);
+wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
+wahmm::real_t** forward_matrix_scaled(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t **logScalingCoeffs);
+void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose);
 
 /**
 * Solve the evaluation problem through the forward algorithm.
@@ -17,9 +18,10 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose);
 * @param obs the observation sequence
 * @param verbose if true prints result informations
 */
-void evaluation_problem(Model& m, vector<real_t>& obs, bool verbose){
-    real_t **logForward;
-    real_t logEvaluation;
+void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose){
+    wahmm::real_t **logForward;
+    wahmm::real_t logEvaluation;
+    size_t numberOfStates = m.mStates.size();
 
     if(verbose)
         cout << "+++++ Evaluation Problem +++++" << endl;
@@ -27,19 +29,19 @@ void evaluation_problem(Model& m, vector<real_t>& obs, bool verbose){
     logForward = forward_matrix(m, obs); // initialization and induction
     // termination
     logEvaluation = -inf;
-    for(int i = 0; i < m.mStates.size(); i++){
+    for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
     }
 
     // print results
     if(verbose){
-        printMatrixSummary(logForward, m.mStates.size(), obs.size(),
+        printMatrixSummary(logForward, numberOfStates, obs.size(),
             "logForward", false);
         cout << "log[ P(O|lambda) ] = " << logEvaluation << endl;
     }
 
-    freeMatrix(logForward, m.mStates.size());
+    freeMatrix(logForward, numberOfStates);
 }
 
 /**
@@ -48,30 +50,29 @@ void evaluation_problem(Model& m, vector<real_t>& obs, bool verbose){
 * @param m the model
 * @param obs the observation sequence
 */
-real_t** forward_matrix(Model& m, vector<real_t>& obs){
-    real_t **logForward;
-    logForward = new real_t*[m.mStates.size()]; // forward variables
+wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
+    wahmm::real_t **logForward;
+    size_t numberOfStates = m.mStates.size();
+    logForward = new wahmm::real_t*[numberOfStates]; // forward variables
 
     // initialization
-    for(int i = 0; i < m.mStates.size(); i++){
-        logForward[i] = new real_t[obs.size()];
+    for(size_t i = 0; i < numberOfStates; i++){
+        logForward[i] = new wahmm::real_t[obs.size()];
         // alpha_0(i) = pi_i * b_i(O_1)
-        logForward[i][0] = m.mInitialDistribution[i] + m.mStates[i]
-            .distribution().pdf(obs[0]);
+        logForward[i][0] = m.mLogPi[i] +
+            m.mStates[i].logPdf(obs[0]);
     }
-
     // induction
-    for(int o = 1; o < obs.size(); o++){ // observations
-        for(int j = 0; j < m.mStates.size(); j++)
-            logForward[j][o] = -inf;
-        for(int j = 0; j < m.mStates.size(); j++){ // arriving state
-            for(int i = 0; i < m.mStates.size(); i++){ // starting state
+    for(size_t t = 1; t < obs.size(); t++){ // observations
+        for(size_t j = 0; j < numberOfStates; j++){ // arriving state
+            logForward[j][t] = -inf;
+            for(int i = 0; i < numberOfStates; i++){ // starting state
                 // alpha_t+1(j) = sum_{i=0}^N alpha_t(i)a_{ij} ...
-                logForward[j][o] = sum_logarithms(logForward[j][o],
-                    logForward[i][o-1] + m.mLogTransitions[i][j]);
+                logForward[j][t] = sum_logarithms(logForward[j][t],
+                    logForward[i][t-1] + m.mLogTransitions[i][j]);
             }
             // ... b_{j}(O_{t+1})
-            logForward[j][o] += m.mStates[j].distribution().pdf(obs[o]);
+            logForward[j][t] += m.mStates[j].logPdf(obs[t]);
         }
     }
 
@@ -79,32 +80,31 @@ real_t** forward_matrix(Model& m, vector<real_t>& obs){
 }
 
 /**
-* Compute the forward backward given a model and an observations sequence.
+* Compute the backward matrix given a model and an observations sequence.
 *
 * @param m the model
 * @param obs the observation sequence
 */
-real_t** backward_matrix(Model& m, vector<real_t>& obs){
-    real_t **logBackward;
-    logBackward = new real_t*[m.mStates.size()]; // forward variables
+wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
+    wahmm::real_t **logBackward;
+    size_t numberOfStates = m.mStates.size();
+    logBackward = new wahmm::real_t*[numberOfStates]; // forward variables
 
     // initialization
-    for(int i = 0; i < m.mStates.size(); i++){
-        logBackward[i] = new real_t[obs.size()];
+    for(size_t i = 0; i < numberOfStates; i++){
+        logBackward[i] = new wahmm::real_t[obs.size()];
         // beta_T(i) = 1
         logBackward[i][obs.size()-1] = 0;
     }
-
     // induction
     for(int t = obs.size()-2; t >= 0; t--){ // observations
-        for(int j = 0; j < m.mStates.size(); j++)
-            logBackward[j][t] = -inf;
-        for(int i = 0; i < m.mStates.size(); i++){ // arriving state
-            for(int j = 0; j < m.mStates.size(); j++){ // starting state
+        for(size_t i = 0; i < numberOfStates; i++){ // arriving state
+            logBackward[i][t] = -inf;
+            for(size_t j = 0; j < numberOfStates; j++){ // starting state
                 // beta_t(i) = sum_{j=1}^N a_{ij} b_j(O_{t+1}) beta_{t+1}(j)
                 logBackward[i][t] = sum_logarithms(logBackward[i][t],
                     m.mLogTransitions[i][j] +
-                    m.mStates[j].distribution().pdf(obs[t+1]) +
+                    m.mStates[j].logPdf(obs[t+1]) +
                     logBackward[j][t+1]);
             }
         }
@@ -123,46 +123,42 @@ real_t** backward_matrix(Model& m, vector<real_t>& obs){
 * @param obs the observation sequence
 * @param verbose if true print result informations
 */
-void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
-    real_t **logViterbi, **statesViterbi;
-    logViterbi = new real_t*[m.mStates.size()];
-    statesViterbi = new real_t*[m.mStates.size()];
+void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
+    wahmm::real_t **logViterbi, **statesViterbi;
+    size_t numberOfStates = m.mStates.size();
+    logViterbi = new wahmm::real_t*[numberOfStates];
+    statesViterbi = new wahmm::real_t*[numberOfStates];
 
     if(verbose)
         cout << "+++++ Decoding Problem +++++" << endl;
 
     // initialization
-    for(int i = 0; i < m.mStates.size(); i++){
-        logViterbi[i] = new real_t[obs.size()];
-        statesViterbi[i] = new real_t[obs.size()];
+    for(size_t i = 0; i < numberOfStates; i++){
+        logViterbi[i] = new wahmm::real_t[obs.size()];
+        statesViterbi[i] = new wahmm::real_t[obs.size()];
         // delta_0(i) = pi_i * b_i(O_1)
-        logViterbi[i][0] = m.mInitialDistribution[i] + m.mStates[i]
-            .distribution().pdf(obs[0]);
-        // psi_0(i) = 0
-        statesViterbi[i][0] = -1;
+        logViterbi[i][0] = m.mLogPi[i] + m.mStates[i].logPdf(obs[0]);
+        statesViterbi[i][0] = -1; // psi_0(i) = 0
     }
-
     // induction
-    real_t currentMax = -inf;
-    real_t currentSum = 0;
+    wahmm::real_t currentMax = -inf;
+    wahmm::real_t currentSum = 0;
     size_t currentState = -1;
-    for(int o = 1; o < obs.size(); o++){ // observations
-        for(int j = 0; j < m.mStates.size(); j++)
-            logViterbi[j][o] = -inf;
-        for(int j = 0; j < m.mStates.size(); j++){ // arriving state
+    for(size_t t = 1; t < obs.size(); t++){ // observations
+        for(size_t j = 0; j < numberOfStates; j++){ // arriving state
+            logViterbi[j][t] = -inf;
             // delta_t(j) = max_{1<=i<=N} delta_{t-1}(i)a_{ij} ...
-            for(int i = 0; i < m.mStates.size(); i++){ // starting state
-                currentSum = logViterbi[i][o-1] + m.mLogTransitions[i][j];
+            for(size_t i = 0; i < numberOfStates; i++){ // starting state
+                currentSum = logViterbi[i][t-1] + m.mLogTransitions[i][j];
                 if(currentSum > currentMax){
                     currentMax = currentSum;
                     currentState = i;
                 }
             }
             // ... b_{j}(O_{t})
-            logViterbi[j][o] = currentMax + m.mStates[j]
-                .distribution().pdf(obs[o]);
+            logViterbi[j][t] = currentMax + m.mStates[j].logPdf(obs[t]);
             // psi_t(j) = argmax[...]
-            statesViterbi[j][o] = currentState;
+            statesViterbi[j][t] = currentState;
             // re-initialize max variables for next loop
             currentMax = -inf;
             currentState = -1;
@@ -170,28 +166,27 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
     }
 
     // termination
-    real_t logDecoding;
+    wahmm::real_t logDecoding;
     list<size_t> viterbiPath;
     currentMax = -inf; // this will contain the log probability of the path
     currentState = -1;
-    for(int i = 0; i < m.mStates.size(); i++){
+    for(size_t i = 0; i < numberOfStates; i++){
         if(logViterbi[i][obs.size()-1] > currentMax){
             currentMax = logViterbi[i][obs.size()-1];
             currentState = i;
         }
     }
-
     viterbiPath.push_front(currentState);
-    for(int o = obs.size()-2; o >= 0; o--){
+    for(int t = obs.size()-2; t >= 0; t--){
         // if currentState == -1, impossible path? can it happen?
         if(currentState >= 0)
-            currentState = statesViterbi[currentState][o + 1];
+            currentState = statesViterbi[currentState][t+1];
         viterbiPath.push_front(currentState);
     }
 
     // print results
     if(verbose){
-        printMatrixSummary(logViterbi, m.mStates.size(), obs.size(),
+        printMatrixSummary(logViterbi, numberOfStates, obs.size(),
             "logViterbi", false);
         cout << "Most likely path: " << endl;
         int i = 0;
@@ -213,13 +208,8 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
         ofs << *it << " ";
     ofs.close();
 
-
-    for(int i = 0; i < m.mStates.size(); i++){
-        delete[] logViterbi[i];
-        delete[] statesViterbi[i];
-    }
-    delete[] logViterbi;
-    delete[] statesViterbi;
+    freeMatrix(logViterbi, numberOfStates);
+    freeMatrix(statesViterbi, numberOfStates);
 }
 
 /**
@@ -247,13 +237,14 @@ void decoding_problem(Model &m, vector<real_t>& obs, bool verbose){
 @returns the logEvaluation P(O|lambda) of the previous model
 
 */
-real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
-    real_t **logEpsilon, real_t *logBackward, real_t *prevLogBackward,
-    real_t *logPi, real_t **logGamma, real_t *logGammaSum,
-    real_t *logAverage, real_t *logVariance){
+wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t minObs,
+    wahmm::real_t **logEpsilon, wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
+    wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
+    wahmm::real_t *logAverage, wahmm::real_t *logVariance){
 
-    real_t logEvaluation; // P(O|lambda)
-    real_t **logForward; // forward matrix
+    wahmm::real_t logEvaluation; // P(O|lambda)
+    wahmm::real_t **logForward; // forward matrix
+    wahmm::real_t *tmp; // for swapping of the backward arrays
     size_t numberOfStates = m.mStates.size();
 
     // initialization
@@ -272,37 +263,37 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
     }
+    printMatrixSummary(logForward, numberOfStates, obs.size(),
+        "logForward", false);
+    cout <<  "log[ P(O|lambda) ] = " << logEvaluation << endl;
 
     // start from T-1
     for(int t = obs.size()-2; t >= 0; t--){
-        //cout << "[Debug] Starting observation " << t << endl;
         // calculate backward variable for the next iteration
-        real_t currentSum;
         for(int i = 0; i < numberOfStates; i++){
             logBackward[i] = -inf;
             for(size_t j = 0; j < numberOfStates; j++){
-                currentSum = m.mLogTransitions[i][j] +
-                    m.mStates[j].distribution().pdf(obs[t+1]) +
-                    prevLogBackward[j];
-                logBackward[i] = sum_logarithms(logBackward[i], currentSum);
+                logBackward[i] = sum_logarithms(logBackward[i],
+                    m.mLogTransitions[i][j] +
+                    m.mStates[j].logPdf(obs[t+1]) +
+                    prevLogBackward[j]);
             }
-
         }
-        //cout << "[Debug] Backward("<<t<<") = "<< logBackward[0] << "," << logBackward[1] << endl;
-        //cout << "[Debug] Backward variable computed " << endl;
         // calculate epsilon and increase estimates for observation t
         for(size_t i = 0; i < numberOfStates; i++){
-            for(size_t j = 0; j < m.mStates.size(); j++){
+            for(size_t j = 0; j < numberOfStates; j++){
                 logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
-                    logForward[i][t] + m.mLogTransitions[i][j] +
-                    m.mStates[j].distribution().pdf(obs[t+1]) +
-                    prevLogBackward[j]); // -logEvaluation (it simplifies ?)
+                    logForward[i][t] +
+                    m.mLogTransitions[i][j] +
+                    m.mStates[j].logPdf(obs[t+1]) +
+                    prevLogBackward[j]); // -logEvaluation (it simplifies)
                     //prevLogBackward is beta_{t+1}
             }
             // calculate gamma_t(i) for the current t
             // logBackward is beta_t
             logGamma[i][t] = logForward[i][t] + logBackward[i];
-            //cout << "logGamma["<<i<<"]["<<t<<"] = "<<logGamma[i][t] << endl; // debug
+            // if(t < 10)
+            //     cout << "logGamma["<<i<<"]["<<t<<"] = "<<logGamma[i][t] << endl; // debug
             logGammaSum[i] = sum_logarithms(logGammaSum[i], logGamma[i][t]);
             // update the accumulators
             logAverage[i] = sum_logarithms(logAverage[i],
@@ -324,17 +315,15 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
             // cout << "[Debug] futureLogVariance["<<i<<"]: " << logVariance[i] - logGamma[i] + logEvaluation << endl;
             // cout << "================================" << endl;
         }
-        real_t *tmp;
         // to avoid copying the array
         tmp = logBackward;
         logBackward = prevLogBackward;
         prevLogBackward = tmp;
     }
-    // = sum_logarithms(logGamma[i], currentGamma[i]);
     // compute final reestimated parameters
-    real_t currentNewAverage;
+    wahmm::real_t currentNewAverage;
     for(size_t i = 0; i < numberOfStates; i++){
-        for(size_t j = 0; j < m.mStates.size(); j++){
+        for(size_t j = 0; j < numberOfStates; j++){
             logEpsilon[i][j] -= logGammaSum[i]; // a_{ij}
         }
         logPi[i] = logGamma[i][0] - logEvaluation; // pi_i = gamma_1(i)
@@ -349,52 +338,59 @@ real_t training_problem(Model& m, vector<real_t>& obs, real_t minObs,
 
     // update parameters in the model
     for(size_t i = 0; i < numberOfStates; i++){
-        m.mInitialDistribution[i] = logPi[i];
+        m.mLogPi[i] = logPi[i];
         for(size_t j = 0; j < numberOfStates; j++){
             m.mLogTransitions[i][j] = logEpsilon[i][j];
         }
-        m.mStates[i].setDistribution(NormalDistribution(
-            exp(logAverage[i])+minObs, sqrt(exp(logVariance[i]))));
+        m.mStates[i].updateParameters(exp(logAverage[i])+minObs,
+            sqrt(exp(logVariance[i])));
     }
+
     freeMatrix(logForward, numberOfStates);
 
     return logEvaluation;
 }
 
-
-void training_problem_wrapper(Model& m, vector<real_t>& obs, real_t thresh,
+/**
+* Wrapper for the training problem, to perform more iterations of the
+* Baum-Welch algorithm.
+*/
+void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
     size_t maxIterations){
 
-    real_t **logEpsilon; // eps_t(i,j), accumulator over all t
-    real_t *logBackward = new real_t[m.mStates.size()]; // only current t
-    real_t *prevLogBackward = new real_t[m.mStates.size()];
-    real_t *logPi = new real_t[m.mStates.size()]; // computed at last
-    real_t **logGamma;
-    real_t *logGammaSum = new real_t[m.mStates.size()];
-    real_t *logAverage = new real_t[m.mStates.size()]; // one for each state
-    real_t *logVariance = new real_t[m.mStates.size()]; // one for each state
+    wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
+    wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
+    wahmm::real_t *prevLogBackward = new wahmm::real_t[m.mStates.size()];
+    wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()]; // computed at last
+    wahmm::real_t **logGamma;
+    wahmm::real_t *logGammaSum = new wahmm::real_t[m.mStates.size()];
+    wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()]; // one for each state
+    wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()]; // one for each state
 
-    logEpsilon = new real_t*[m.mStates.size()];
-    logGamma = new real_t*[m.mStates.size()];
+    logEpsilon = new wahmm::real_t*[m.mStates.size()];
+    logGamma = new wahmm::real_t*[m.mStates.size()];
     for(size_t i = 0; i < m.mStates.size(); i++){
-        logEpsilon[i] = new real_t[m.mStates.size()];
-        logGamma[i] = new real_t[obs.size()-1];
+        logEpsilon[i] = new wahmm::real_t[m.mStates.size()];
+        logGamma[i] = new wahmm::real_t[obs.size()-1];
     }
 
 
-    real_t minObs = 0;
+    wahmm::real_t minObs = 0;
     for(auto it = obs.begin(); it != obs.end(); it++){
         if(*it < minObs)
             minObs = *it;
     }
     minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
-    real_t evaluation=-inf, newEvaluation=-inf;
+    wahmm::real_t evaluation=-inf, newEvaluation=-inf;
     real_t logImprovement = thresh + 1;
     size_t iter;
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
         newEvaluation = training_problem(m, obs, minObs,
             logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
             logGammaSum, logAverage, logVariance);
+        // newEvaluation = training_problem_scaled(m, obs, minObs,
+        //     logEpsilon, logPi, logGamma,
+        //     logGammaSum, logAverage, logVariance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
     }

@@ -1,10 +1,10 @@
 #ifndef WAHMM_UTILITIES_HPP
 #define WAHMM_UTILITIES_HPP
 #include <iostream>
-#include "includes.hpp"
+#include "commons.hpp"
 
 /** Given (a = log(x) and b = log(y), returns log(x+y)) */
-real_t sum_logarithms(real_t a, real_t b){
+wahmm::real_t sum_logarithms(wahmm::real_t a, wahmm::real_t b){
     /**
 	Perform log-sum-exp on a pair of numbers in log space..  This is calculated
 	as z = log( e**x + e**y ). However, this causes underflow sometimes
@@ -20,12 +20,12 @@ real_t sum_logarithms(real_t a, real_t b){
     if(b == -inf)
         return a;
     if(a > b)
-        return a + log(exp(b-a) + 1);
-    return b + log(exp(a-b) + 1);
+        return a + log1pf(exp(b-a));
+    return b + log1pf(exp(a-b));
 }
 
-/** Free a matrix of real_t with 'rows' rows. */
-void freeMatrix(real_t** m, size_t rows){
+/** Free a matrix of wahmm::real_t with 'rows' rows. */
+void freeMatrix(wahmm::real_t** m, size_t rows){
     for(int i = 0; i < rows; i++)
         delete[] m[i];
     delete[] m;
@@ -46,7 +46,7 @@ void freeMatrix(real_t** m, size_t rows){
 * @param matrixName printed before the matrix as a header
 * @param byRow if true prints by row, otherwise by columns
 */
-void printMatrixSummary(real_t **m, size_t rows, size_t cols,
+void printMatrixSummary(wahmm::real_t **m, size_t rows, size_t cols,
     std::string matrixName, bool byRow){
     cout << "=== " << matrixName << " ===" << endl;
     if(byRow){

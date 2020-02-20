@@ -22,6 +22,8 @@ public:
     Model(std::vector<State>& states, std::vector<wahmm::real_t>&relativeTr,
         std::vector<wahmm::real_t>& relativePi);
     void printModel();
+    friend ostream& operator<<(ostream& os, const Model& m);
+    friend istream& operator>>(istream& is, Model& m);
 };
 
 Model::Model(){}
@@ -67,6 +69,47 @@ void Model::printModel(){
         std::cout << exp(mLogPi[i]) << " ";
     std::cout << endl;
     std::cout << "----------" << std::endl;
+}
+
+ostream& operator<<(ostream& os, const Model& m){
+    os.precision(100);
+    os << m.mStates.size() << " ";
+    for(State s : m.mStates)
+        os << s.mean() << " " << s.stdDev() << " ";
+    for(size_t i = 0; i < m.mStates.size(); i++)
+        for(size_t j = 0; j < m.mStates.size(); j++)
+            os << m.mLogTransitions[i][j] << " ";
+    for(size_t i = 0; i < m.mStates.size(); i++)
+        os << m.mLogPi[i] << " ";
+    return os;
+}
+
+istream& operator>>(istream& is, Model& m){
+    size_t nStates;
+    wahmm::real_t inMean, inStdDev;
+    is >> nStates;
+    for(size_t n = 0; n < nStates; n++){
+        is >> inMean >> inStdDev;
+        m.mStates.push_back(State(inMean, inStdDev));
+    }
+    m.mLogTransitions = new wahmm::real_t*[nStates];
+    for(size_t i = 0; i < nStates; i++){
+        m.mLogTransitions[i] = new wahmm::real_t[nStates];
+        for(size_t j = 0; j < nStates; j++){
+            is >> m.mLogTransitions[i][j];
+        }
+    }
+    wahmm::real_t inPi;
+    std::string inPiString;
+    for(size_t i = 0; i < nStates; i++){
+        is >> inPiString;
+        if(inPiString == "-inf")
+            inPi = -wahmm::inf;
+        else
+            inPi = std::stod(inPiString);
+        m.mLogPi.push_back(inPi);
+    }
+    return is;
 }
 
 #endif

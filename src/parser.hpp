@@ -52,6 +52,10 @@ parse(int argc, char* argv[])
             cxxopts::value<std::string>(), "<filename>")
         ("path", "Input file containing the generating path",
             cxxopts::value<std::string>(), "<filename>")
+        ("import", "Input file containing a saved model",
+            cxxopts::value<std::string>(), "<filename>")
+        ("export", "Export the trained to a file",
+            cxxopts::value<std::string>(), "<filename>")
         ("evaluation", "Solve the evaluation problem using a standard "
             "implementation of the forward algorithm",
             cxxopts::value<bool>())

@@ -3,6 +3,9 @@
 #include "State.hpp"
 #include "Model.hpp"
 #include "algorithms.hpp"
+#include "Compressor.hpp"
+#include "algorithms_compressed.hpp"
+
 
 int main(int argc, const char* argv[]){
     // std::string filename("data");
@@ -20,7 +23,9 @@ int main(int argc, const char* argv[]){
     std::vector<wahmm::real_t> statePath;
     std::string fileObs, filePath, fileModelIn, fileModelOut;
     bool evaluation = false, decoding = false, training = false;
+    bool compressed = false;
     bool verbose = false;
+    Compressor *compressor;
 
     // parsing arguments from command line
     if(result.count("import")){ // read the model from a file
@@ -73,6 +78,8 @@ int main(int argc, const char* argv[]){
         decoding = true;
     if(result.count("training"))
         training = true;
+    if(result.count("compressed"))
+        compressed = true;
     if(result.count("verbose"))
         verbose = true;
 
@@ -86,18 +93,23 @@ int main(int argc, const char* argv[]){
         return -1;
     }
 
-    // Read the file with input observations
-    std::ifstream obsFileInput(fileObs);
-    if(obsFileInput.is_open()){
-        wahmm::real_t number;
-        while(obsFileInput >> number){
-            observations.push_back(number);
+    if(!compressed){
+        // Read the file with input observations
+        std::ifstream obsFileInput(fileObs);
+        if(obsFileInput.is_open()){
+            wahmm::real_t number;
+            while(obsFileInput >> number){
+                observations.push_back(number);
+            }
+        } else {
+            std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
+            return -1;
         }
-    } else {
-        std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
-        return -1;
+        obsFileInput.close();
     }
-    obsFileInput.close();
+    else {
+        compressor = new Compressor(fileObs);
+    }
     // Read the file with input state path
     std::ifstream pathFileInput(filePath);
     if(pathFileInput.is_open()){
@@ -113,12 +125,19 @@ int main(int argc, const char* argv[]){
 
     model.printModel();
 
-    if(evaluation)
-        evaluation_problem(model, observations, verbose);
-    if(decoding)
-        decoding_problem(model, observations, verbose);
-    if(training)
-        training_problem_wrapper(model, observations, 1e-9, 100, verbose);
+    if(!compressed){
+        if(evaluation)
+            evaluation_problem(model, observations, verbose);
+        if(decoding)
+            decoding_problem(model, observations, verbose);
+        if(training)
+            training_problem_wrapper(model, observations, 1e-9, 100, verbose);
+    }
+    else {
+        std::cout << "blocksNumber: " << compressor->blocksNumber() << std::endl;
+        if(evaluation)
+            evaluation_compressed(model, compressor, verbose);
+    }
 
     if(result.count("export")){
         std::ofstream modelFileOutput(fileModelOut);

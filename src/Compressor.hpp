@@ -25,6 +25,7 @@ class Compressor {
     Statistics<IntegralArray, Normal> *mIntegralArray;
     /** Breakpoint array, @see HaMMLET documentation */
     Blocks<BreakpointArray> *mWaveletBlocks;
+    size_t mBlocksNumber;
 public:
     Compressor(const Compressor& that) = delete;
     /**
@@ -39,8 +40,11 @@ public:
     ~Compressor();
     /** Move the "current block pointer" back to the first block. */
     void initForward();
-    /** Move the "current block pointer" one step forward. */
-    void next();
+    /**
+    * Move the "current block pointer" one step forward.
+    * @return false if the "current block" is the last one
+    */
+    bool next();
     /** Return the start index of the "current block". */
     size_t start();
     /** Return the end index of the "current block". */
@@ -48,7 +52,11 @@ public:
     /** Return the size of the "current block". */
     size_t blockSize();
     /** Return the sum of the observations in the "current block". */
-    double blockSum();
+    wahmm::real_t blockSum();
+    /** Return the observations average over the "current block". */
+    wahmm::real_t blockAvg();
+    /** Return the number of blocks. */
+    size_t blocksNumber();
     /** Print start and end indexes of the "current block" alongside with its
     * size and the sum of the observation values in it; the format used is
     * [start,end) size - "Sum:" sum
@@ -72,6 +80,9 @@ Compressor::Compressor(std::string& f){
         } else {
           throw runtime_error( "Cannot read from input file " + f + "!" );
         }
+        HaarBreakpointWeights(mInputValues);
+		mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
+		mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
 
         // compute an estimate of the noise variance from the finest
         // detail coefficients
@@ -81,18 +92,21 @@ Compressor::Compressor(std::string& f){
 			stdEstimate += mInputValues[i];
 			nrDetailCoeffs++;
 		}
-		stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
+        stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
         // divide by sqrt(2/pi) to get estimate of standard deviation
         // for normal distribution
 		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331;
         mThreshold = sqrt(2 * log((real_t)mWaveletBlocks->size()) * stdEstimate);
 
-        HaarBreakpointWeights(mInputValues);
-		mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
-		mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
 		mWaveletBlocks->createBlocks(mThreshold);
 		mWaveletBlocks->initForward();
 		mWaveletBlocks->next();
+        mBlocksNumber = 0;
+        do {
+            mBlocksNumber++;
+        } while(mWaveletBlocks->next());
+        mWaveletBlocks->initForward();
+        mWaveletBlocks->next();
     }
     catch(exception& e) {
         std::cout << std::flush;
@@ -112,8 +126,8 @@ void Compressor::initForward(){
     mWaveletBlocks->next();
 }
 
-void Compressor::next(){
-    mWaveletBlocks->next();
+bool Compressor::next(){
+    return mWaveletBlocks->next();
 }
 
 size_t Compressor::start(){
@@ -128,9 +142,18 @@ size_t Compressor::blockSize(){
     mWaveletBlocks->blockSize();
 }
 
-double Compressor::blockSum(){
+wahmm::real_t Compressor::blockSum(){
     mIntegralArray->setStats(*mWaveletBlocks);
     return mIntegralArray->suffStat(0).sum(); // 0 is the dimension index
+}
+
+wahmm::real_t Compressor::blockAvg(){
+    mIntegralArray->setStats(*mWaveletBlocks);
+    return mIntegralArray->suffStat(0).sum()/mWaveletBlocks->blockSize();
+}
+
+size_t Compressor::blocksNumber(){
+    return mBlocksNumber;
 }
 
 void Compressor::printBlockInfo(){

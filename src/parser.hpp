@@ -21,6 +21,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 */
+#ifndef WAHMM_PARSER_HPP
+#define WAHMM_PARSER_HPP
 
 #include <iostream>
 
@@ -63,6 +65,8 @@ parse(int argc, char* argv[])
             cxxopts::value<bool>())
         ("training", "Solve the training problem with the Baum-Welch "
             "algorithm",
+            cxxopts::value<bool>())
+        ("compressed", "Use the compressed version of the algorithms",
             cxxopts::value<bool>())
         ("v,verbose", "Print extensive algorithms information",
             cxxopts::value<bool>())
@@ -185,3 +189,5 @@ parse(int argc, char* argv[])
 // std::cout << "Saw " << arguments.size() << " arguments" << std::endl;
 //
 // return 0;
+
+#endif

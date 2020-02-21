@@ -43,6 +43,7 @@ using std::max;
 
 namespace wahmm {
     typedef double real_t;
-    const real_t inf = std::numeric_limits<real_t>::infinity();
 }
+const wahmm::real_t infin = std::numeric_limits<wahmm::real_t>::infinity();
+
 #endif

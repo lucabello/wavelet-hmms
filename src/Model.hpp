@@ -104,7 +104,7 @@ istream& operator>>(istream& is, Model& m){
     for(size_t i = 0; i < nStates; i++){
         is >> inPiString;
         if(inPiString == "-inf")
-            inPi = -wahmm::inf;
+            inPi = -infin;
         else
             inPi = std::stod(inPiString);
         m.mLogPi.push_back(inPi);

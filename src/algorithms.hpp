@@ -4,13 +4,13 @@
 #include "utilities.hpp"
 #include <list>
 using std::list;
-using wahmm::inf;
 
 void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose);
 wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
-wahmm::real_t** forward_matrix_scaled(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t **logScalingCoeffs);
+wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
 void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose);
-
+void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
+    size_t maxIterations, bool verbose);
 /**
 * Solve the evaluation problem through the forward algorithm.
 * If verbose is true, print the results.
@@ -29,7 +29,7 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose)
 
     logForward = forward_matrix(m, obs); // initialization and induction
     // termination
-    logEvaluation = -inf;
+    logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
@@ -66,7 +66,7 @@ wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
     // induction
     for(size_t t = 1; t < obs.size(); t++){ // observations
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
-            logForward[j][t] = -inf;
+            logForward[j][t] = -infin;
             for(int i = 0; i < numberOfStates; i++){ // starting state
                 // alpha_t+1(j) = sum_{i=0}^N alpha_t(i)a_{ij} ...
                 logForward[j][t] = sum_logarithms(logForward[j][t],
@@ -100,7 +100,7 @@ wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
     // induction
     for(int t = obs.size()-2; t >= 0; t--){ // observations
         for(size_t i = 0; i < numberOfStates; i++){ // arriving state
-            logBackward[i][t] = -inf;
+            logBackward[i][t] = -infin;
             for(size_t j = 0; j < numberOfStates; j++){ // starting state
                 // beta_t(i) = sum_{j=1}^N a_{ij} b_j(O_{t+1}) beta_{t+1}(j)
                 logBackward[i][t] = sum_logarithms(logBackward[i][t],
@@ -142,12 +142,12 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
         statesViterbi[i][0] = -1; // psi_0(i) = 0
     }
     // induction
-    wahmm::real_t currentMax = -inf;
+    wahmm::real_t currentMax = -infin;
     wahmm::real_t currentSum = 0;
     size_t currentState = -1;
     for(size_t t = 1; t < obs.size(); t++){ // observations
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
-            logViterbi[j][t] = -inf;
+            logViterbi[j][t] = -infin;
             // delta_t(j) = max_{1<=i<=N} delta_{t-1}(i)a_{ij} ...
             for(size_t i = 0; i < numberOfStates; i++){ // starting state
                 currentSum = logViterbi[i][t-1] + m.mLogTransitions[i][j];
@@ -161,7 +161,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
             // psi_t(j) = argmax[...]
             statesViterbi[j][t] = currentState;
             // re-initialize max variables for next loop
-            currentMax = -inf;
+            currentMax = -infin;
             currentState = -1;
         }
     }
@@ -169,7 +169,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
     // termination
     wahmm::real_t logDecoding;
     list<size_t> viterbiPath;
-    currentMax = -inf; // this will contain the log probability of the path
+    currentMax = -infin; // this will contain the log probability of the path
     currentState = -1;
     for(size_t i = 0; i < numberOfStates; i++){
         if(logViterbi[i][obs.size()-1] > currentMax){
@@ -251,15 +251,15 @@ wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm:
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
         for(size_t j = 0; j < numberOfStates; j++)
-            logEpsilon[i][j] = -inf;
+            logEpsilon[i][j] = -infin;
         logBackward[i] = 0;
         prevLogBackward[i] = 0;
-        logGammaSum[i] = -inf;
-        logAverage[i] = -inf;
-        logVariance[i] = -inf;
+        logGammaSum[i] = -infin;
+        logAverage[i] = -infin;
+        logVariance[i] = -infin;
     }
     logForward = forward_matrix(m, obs);
-    logEvaluation = -inf;
+    logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][obs.size()-1]);
@@ -269,7 +269,7 @@ wahmm::real_t training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm:
     for(int t = obs.size()-2; t >= 0; t--){
         // calculate backward variable for the next iteration
         for(int i = 0; i < numberOfStates; i++){
-            logBackward[i] = -inf;
+            logBackward[i] = -infin;
             for(size_t j = 0; j < numberOfStates; j++){
                 logBackward[i] = sum_logarithms(logBackward[i],
                     m.mLogTransitions[i][j] +
@@ -361,7 +361,7 @@ void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::
             minObs = *it;
     }
     minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
-    wahmm::real_t evaluation=-inf, newEvaluation=-inf;
+    wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
     if(verbose)

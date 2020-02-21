@@ -2,7 +2,6 @@
 #define WAHMM_UTILITIES_HPP
 #include <iostream>
 #include "commons.hpp"
-using wahmm::inf;
 
 /** Given (a = log(x) and b = log(y), returns log(x+y)) */
 wahmm::real_t sum_logarithms(wahmm::real_t a, wahmm::real_t b){
@@ -14,11 +13,11 @@ wahmm::real_t sum_logarithms(wahmm::real_t a, wahmm::real_t b){
 	the inputs are infinity, return infinity, and if either of the inputs
 	are negative infinity, then simply return the other input.
 	*/
-    if(a == inf || b == inf)
-        return inf;
-    if(a == -inf)
+    if(a == infin || b == infin)
+        return infin;
+    if(a == -infin)
         return b;
-    if(b == -inf)
+    if(b == -infin)
         return a;
     if(a > b)
         return a + log1pf(exp(b-a));

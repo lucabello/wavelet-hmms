@@ -116,7 +116,7 @@ wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
 
 
 /**
-* Solve the evaluation problem through the forward algorithm.
+* Solve the decoding problem through the forward algorithm.
 * Currently write the obtained path in results/wahmm_viterbi.
 * If verbose is true print the Viterbi matrix.
 *
@@ -182,6 +182,8 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
         // if currentState == -1, impossible path? can it happen?
         if(currentState >= 0)
             currentState = statesViterbi[currentState][t+1];
+        else
+            std::cerr << "[Error] Impossible Viterbi path!" << std::endl;
         viterbiPath.push_front(currentState);
     }
 

@@ -57,6 +57,8 @@ public:
     wahmm::real_t blockAvg();
     /** Return the number of blocks. */
     size_t blocksNumber();
+    /** Return the number of observations. */
+    size_t observationsNumber();
     /** Print start and end indexes of the "current block" alongside with its
     * size and the sum of the observation values in it; the format used is
     * [start,end) size - "Sum:" sum
@@ -80,25 +82,41 @@ Compressor::Compressor(std::string& f){
         } else {
           throw runtime_error( "Cannot read from input file " + f + "!" );
         }
-        HaarBreakpointWeights(mInputValues);
-		mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
-		mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
 
         // compute an estimate of the noise variance from the finest
         // detail coefficients
+        std::cout << std::endl;
 		double stdEstimate = 0;
-		size_t nrDetailCoeffs = 0;
+        double estimateAccum = 0;
 		for (size_t i = 1; i < mInputValues.size(); i += 2){
 			stdEstimate += mInputValues[i];
-			nrDetailCoeffs++;
+            if(stdEstimate > mInputValues.size()){
+                estimateAccum += stdEstimate/(mInputValues.size()/2);
+                stdEstimate = 0;
+            }
 		}
-        stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
+        estimateAccum += stdEstimate/(mInputValues.size()/2);
+        stdEstimate = estimateAccum;
+
+        HaarBreakpointWeights(mInputValues);
+        mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
+        mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
+
+        std::cout << "stdEstimate: " << stdEstimate << std::endl;
+        //stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
+        //std::cout << "stdEstimate: " << stdEstimate << std::endl;
         // divide by sqrt(2/pi) to get estimate of standard deviation
         // for normal distribution
 		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331;
+        std::cout << "stdEstimate: " << stdEstimate << std::endl;
+        std::cout << "log(mWaveletBlocks.size()): " << log(mWaveletBlocks->size()) << std::endl;
+        std::cout << "stdEstimate: " << stdEstimate << std::endl;
         mThreshold = sqrt(2 * log((real_t)mWaveletBlocks->size()) * stdEstimate);
 
-		mWaveletBlocks->createBlocks(mThreshold);
+
+
+        //std::cout << "Using this threshold: " << mThreshold << std::endl;
+		mWaveletBlocks->createBlocks(mThreshold); //mThreshold
 		mWaveletBlocks->initForward();
 		mWaveletBlocks->next();
         mBlocksNumber = 0;
@@ -156,18 +174,22 @@ size_t Compressor::blocksNumber(){
     return mBlocksNumber;
 }
 
+size_t Compressor::observationsNumber(){
+    return mInputValues.size();
+}
+
 void Compressor::printBlockInfo(){
     mWaveletBlocks->printBlock();
     cout << "- Sum: " << blockSum() << endl;
 }
 
 void Compressor::printAllBlocks(){
-    cout << "Threshold used: " << mThreshold << endl;
     do {
         printBlockInfo();
         mWaveletBlocks->next();
     } while (mWaveletBlocks->end() < mWaveletBlocks->size());
     printBlockInfo();
+    cout << "Threshold used: " << mThreshold << endl;
     initForward();
 }
 

@@ -5,7 +5,7 @@
 #include "algorithms.hpp"
 #include "Compressor.hpp"
 #include "algorithms_compressed.hpp"
-
+#include <stdio.h>
 
 int main(int argc, const char* argv[]){
     // std::string filename("data");
@@ -26,6 +26,7 @@ int main(int argc, const char* argv[]){
     bool compressed = false;
     bool verbose = false;
     Compressor *compressor;
+    FILE *finObs, *finPath;
 
     // parsing arguments from command line
     if(result.count("import")){ // read the model from a file
@@ -93,35 +94,34 @@ int main(int argc, const char* argv[]){
         return -1;
     }
 
+    wahmm::real_t number;
     if(!compressed){
         // Read the file with input observations
-        std::ifstream obsFileInput(fileObs);
-        if(obsFileInput.is_open()){
-            wahmm::real_t number;
-            while(obsFileInput >> number){
+        finObs = fopen(fileObs.c_str(), "r");
+        if(finObs != NULL){
+            while(fscanf(finObs, "%lf", &number) != EOF)
                 observations.push_back(number);
-            }
         } else {
             std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
             return -1;
         }
-        obsFileInput.close();
+        fclose(finObs);
+        // std::cout << "Read " << observations.size() << " observations from file." << std::endl;
     }
     else {
         compressor = new Compressor(fileObs);
+        compressor->printBlockInfo();
     }
     // Read the file with input state path
-    std::ifstream pathFileInput(filePath);
-    if(pathFileInput.is_open()){
-        wahmm::real_t number;
-        while(pathFileInput >> number){
+    finPath = fopen(filePath.c_str(), "r");
+    if(finPath != NULL){
+        while(fscanf(finPath, "%lf", &number) != EOF)
             statePath.push_back(number);
-        }
     } else {
         std::cerr << "Cannot read file " + filePath + " !" << std::endl;
         return -1;
     }
-    pathFileInput.close();
+    fclose(finPath);
 
     model.printModel();
 
@@ -134,9 +134,10 @@ int main(int argc, const char* argv[]){
             training_problem_wrapper(model, observations, 1e-9, 100, verbose);
     }
     else {
-        std::cout << "blocksNumber: " << compressor->blocksNumber() << std::endl;
         if(evaluation)
             evaluation_compressed(model, compressor, verbose);
+        if(decoding)
+            decoding_compressed(model, compressor, verbose);
     }
 
     if(result.count("export")){

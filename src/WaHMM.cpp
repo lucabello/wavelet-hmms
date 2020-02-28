@@ -136,8 +136,8 @@ int main(int argc, const char* argv[]){
     else {
         if(evaluation)
             evaluation_compressed(model, compressor, verbose);
-        if(decoding)
-            decoding_compressed(model, compressor, verbose);
+        // if(decoding)
+        //     decoding_compressed(model, compressor, verbose);
     }
 
     if(result.count("export")){

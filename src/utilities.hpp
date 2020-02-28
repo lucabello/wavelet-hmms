@@ -31,6 +31,32 @@ void freeMatrix(wahmm::real_t** m, size_t rows){
     delete[] m;
 }
 
+/** Compute K(n_w,j) */
+wahmm::real_t compute_k(Model& m, size_t j, size_t nw){
+    const wahmm::real_t log_2pi = 1.83787706640934548356065947281123527972279494727;
+    const wahmm::real_t log_2pi_over2 = log_2pi/2;
+    wahmm::real_t first = (nw-1)*m.mLogTransitions[j][j];
+    wahmm::real_t second = nw*(m.mStates[j].logStdDev() +
+        pow(m.mStates[j].mean()/m.mStates[j].stdDev(),2)/2 +
+        log_2pi_over2);
+    return first - second;
+}
+
+/** Compute E_w(j) with expanded params */
+wahmm::real_t compute_e(Model& m, size_t j, size_t nw, wahmm::real_t sigma1,
+    wahmm::real_t sigma2){
+    wahmm::real_t num = 2*m.mStates[j].mean()*sigma1 - sigma2;
+    wahmm::real_t den = 2*pow(m.mStates[j].stdDev(),2);
+    return (num/den) + compute_k(m, j, nw);
+}
+
+/** Compute E_w(j) */
+wahmm::real_t compute_e(Model& m, size_t j, blockdata bd){
+    wahmm::real_t num = 2*m.mStates[j].mean()*bd.s1 - bd.s2;
+    wahmm::real_t den = 2*pow(m.mStates[j].stdDev(),2);
+    return (num/den) + compute_k(m, j, bd.nw);
+}
+
 /**
 * Prints a matrix in a compressed form with the following format (example 10x3):
 * [ x_00 x_01 x_02 ]

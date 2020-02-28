@@ -27,6 +27,7 @@ public:
     std::string name();
     wahmm::real_t mean();
     wahmm::real_t stdDev();
+    wahmm::real_t logStdDev();
     /** The log probability of sampling x from the distribution */
     wahmm::real_t logPdf(wahmm::real_t x);
     void updateParameters(wahmm::real_t mean, wahmm::real_t stdDev);
@@ -65,6 +66,10 @@ wahmm::real_t State::mean(){
 
 wahmm::real_t State::stdDev(){
     return mStdDev;
+}
+
+wahmm::real_t State::logStdDev(){
+    return mLogStdDev;
 }
 
 wahmm::real_t State::logPdf(wahmm::real_t x){

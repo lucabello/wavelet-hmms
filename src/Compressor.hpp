@@ -14,12 +14,14 @@
 #include "utils.hpp"
 #include "commons.hpp"
 
-struct blockdata_t {
-    size_t nw;
-    wahmm::real_t s1;
-    wahmm::real_t s2;
-};
-typedef blockdata_t blockdata;
+template< typename T>
+void MaxletTransform(FILE* fin,
+    bool binary,
+    vector<real_t>& coeffs,
+    vector< SufficientStatistics<T> >& suffstats,
+    const size_t nrDim = 1,
+    const size_t reserveT = 0 // an estimate of the number of data points to avoid reallocation
+);
 
 class Compressor {
     /** Input observations values */
@@ -47,7 +49,7 @@ public:
     *
     * @param filename the name of the input file to read the data
     */
-    Compressor(std::string& filename);
+    Compressor(std::string& filename, bool binary);
     ~Compressor();
     /** Move the "current block pointer" back to the first block. */
     void initForward();
@@ -101,21 +103,25 @@ public:
     void printAllBlocks();
 };
 
-Compressor::Compressor(std::string& f){
+Compressor::Compressor(std::string& f, bool binary){
     try {
         const size_t nrDataDim = 1; // number of dimensions
-        ifstream finput(f);
+        FILE* fin;
+        if(!binary)
+            fin = fopen(f.c_str(), "r");
+        else
+            fin = fopen(f.c_str(), "rb");
         // Open the file and populate mInputValues
-        if(finput) {
-            MaxletTransform(finput, mInputValues, mStats, nrDataDim,
-                mInputValues.size() + nrLinesInFile(finput) + 1);
+        if(fin != NULL) {
+            MaxletTransform(fin, binary, mInputValues, mStats, nrDataDim,
+                mInputValues.size() + 2);
         } else {
           throw runtime_error( "Cannot read from input file " + f + "!" );
         }
+        fclose(fin);
 
         // compute an estimate of the noise variance from the finest
         // detail coefficients
-        std::cout << std::endl;
 		double stdEstimate = 0;
         double estimateAccum = 0;
 		for (size_t i = 1; i < mInputValues.size(); i += 2){
@@ -227,7 +233,7 @@ wahmm::real_t Compressor::reverseSumSq(){
     return (*listIt).s2;
 }
 
-blockdata Compressor::reverseBlockData{
+blockdata Compressor::reverseBlockData(){
     blockdata bd = {(*listIt).nw, (*listIt).s1, (*listIt).s2};
     return bd;
 }
@@ -267,5 +273,120 @@ void Compressor::printAllBlocks(){
     cout << "Threshold used: " << mThreshold << endl;
     initForward();
 }
+
+
+
+
+
+// Computes the maxlet transform (absolute Haar wavelet transform  for each dimension, then maximum of corresponding values across dimensions) from streaming input (dimensions first, then position), using only space T for coefficients and nrDim*T for statistics, plus nrDim*log2(T) for a stack. Output: coeffs.size()=T, suffstats.size() = nrDim*T
+template< typename T>
+void MaxletTransform(
+    FILE* fin,
+    bool binary,
+    vector<real_t>& coeffs,
+    vector< SufficientStatistics<T> >& suffstats,
+    const size_t nrDim = 1,
+    const size_t reserveT = 0	// an estimate of the number of data points to avoid reallocation
+) {
+
+	if ( nrDim <= 0 ) {
+		throw runtime_error( "Number of dimensions must be positive!" );
+	}
+
+
+	if ( coeffs.size() > 0 ) {
+		throw runtime_error( "Coefficient array must be empty!" );
+	}
+
+	if ( suffstats.size() > 0 ) {
+		throw runtime_error( "Statistics array must be empty!" );
+	}
+
+	if ( fin != NULL ) {
+
+
+		coeffs.reserve( ( reserveT + nrDim ) / nrDim + nrDim );
+		suffstats.reserve( reserveT + nrDim );
+
+// 	stack<real_t, vector<real_t> > S;	// stack never gets larger than nrDim*log2(T), so we don't expect a lot of reallocation, and save a lot of push and pop operations due to random access
+		vector<real_t> S;
+		size_t i = 0;
+		real_t v = 0;
+		size_t dim = 0;
+        double inputNum = 0;
+
+        bool fileEnd = false;
+        if(!binary){
+            fileEnd = (fscanf(fin, "%lf", &inputNum) == EOF);
+        }
+        else {
+            fileEnd = (fread(&inputNum,1,sizeof(double),fin) != sizeof(double));
+        }
+		while ( !fileEnd ) {
+            v = (real_t)inputNum;
+			S.push_back( v );
+			suffstats.push_back( SufficientStatistics<T>( v ) );
+			dim++;	// set dimension of next value
+			if ( dim == nrDim ) {	// filled all dimensions at index i
+				dim = 0;	// next value will be first dimension again
+
+
+				coeffs.push_back( inf );
+
+
+				size_t j = i;	// points to node indices on an upward-left path (i.e. DFS post-order)
+				size_t m = 1;	// mask to determine whether j is an index of a left child
+				real_t normalizer = sqrt2half;
+
+				while ( ( j & m ) > 0 ) {	// while j is on a left-upward path (DFS post-order)
+
+					real_t maxCoeff = 0;	// the maximum detail coefficient across dimensions at j; NOTE we cannot take the maximum with coeffs because it contains infinity
+
+					size_t L = S.size() - 2 * nrDim;	// index of left element in stack, get incremented to iterate over dimensions
+					size_t R = L + nrDim;	// likewise, index of right element in stack
+
+
+					// compute maximum of detail coefficients across dimensions
+					for ( size_t d = 0; d < nrDim; ++d ) {
+						maxCoeff = max( maxCoeff, normalizer * abs( S[L] - S[R] ) );
+						S[L] += S[R];	// add right values to left values, so only the right values need to be popped
+						L++;		// go to next dimension
+						R++;
+					}
+					coeffs[j] = maxCoeff;
+
+
+					// pop the right values
+					for ( size_t d = 0; d < nrDim; ++d ) {
+						S.pop_back();
+					}
+
+
+					j = j - m;	// move to left parent (if current position is not a right child, the loop will exit)
+					m *= 2;	// move bit-mask to the left, i.e. check if i is still on a left-up path)
+					normalizer *= sqrt2half;	// moving up one level changes normalization factor
+				}
+				i++;
+			}
+            if(!binary){
+                fileEnd = (fscanf(fin, "%lf", &inputNum) == EOF);
+            }
+            else {
+                fileEnd = (fread(&inputNum,1,sizeof(double),fin) != sizeof(double));
+            }
+		}
+
+
+		if ( dim != 0 ) {
+			throw runtime_error( "Input stream did not contain enough values to fill all dimensions at last position!" );
+		}
+
+		coeffs[0] = inf;
+
+	} else {
+		throw runtime_error( "Cannot read input file or stream!" );
+	}
+}
+
 
 #endif

@@ -50,10 +50,15 @@ parse(int argc, char* argv[])
             cxxopts::value<std::vector<double>>(), "<a_11>,...")
         ("i,initial", "Initial probability distribution",
             cxxopts::value<std::vector<double>>(), "<pi_1>,...")
-        ("obs", "Input file containing the observations",
+        ("obs", "Input file containing the observations as double separated "
+            "by a space",
             cxxopts::value<std::string>(), "<filename>")
-        ("path", "Input file containing the generating path",
+        ("path", "Input file containing the generating path as double separated"
+            "by a space",
             cxxopts::value<std::string>(), "<filename>")
+        ("binary", "Specify that files for observations and generating path"
+            "are in binary format",
+            cxxopts::value<bool>())
         ("import", "Input file containing a saved model",
             cxxopts::value<std::string>(), "<filename>")
         ("export", "Export the trained to a file",

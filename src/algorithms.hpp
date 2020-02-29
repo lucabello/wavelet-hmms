@@ -144,7 +144,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose){
     // induction
     wahmm::real_t currentMax = -infin;
     wahmm::real_t currentSum = 0;
-    size_t currentState = -1;
+    int currentState = -1;
     for(size_t t = 1; t < obs.size(); t++){ // observations
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
             logViterbi[j][t] = -infin;

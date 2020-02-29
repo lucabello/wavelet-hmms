@@ -46,4 +46,11 @@ namespace wahmm {
 }
 const wahmm::real_t infin = std::numeric_limits<wahmm::real_t>::infinity();
 
+struct blockdata_t {
+    size_t nw;
+    wahmm::real_t s1;
+    wahmm::real_t s2;
+};
+typedef blockdata_t blockdata;
+
 #endif

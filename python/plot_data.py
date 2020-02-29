@@ -12,7 +12,7 @@ for s in string_list:
     if counter > input_limit:
         break
 in_file.close()
-x = range(1,10001)
+
 
 path_file = open("data/path", "r")
 line = path_file.read()
@@ -25,6 +25,8 @@ for s in string_list:
     if counter > input_limit:
         break
 path_file.close()
+
+x = range(1,input_limit+1)
 
 plt.scatter(x, value_list, color='blue')
 plt.step(x, path_list, color='red')

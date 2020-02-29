@@ -28,12 +28,14 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose){
         std::cout << "+++++ Evaluation Compressed Problem +++++" << std::endl;
 
     logForward = forward_matrix_compressed(m, c); // initialization and induction
+    // std::cout << "Starting termination..." << std::endl;
     // termination
     logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
             logForward[i][c->blocksNumber()-1]);
     }
+    // std::cout << "Termination done." << std::endl;
 
     // print results
     if(verbose){
@@ -51,6 +53,7 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
     size_t numberOfStates = m.mStates.size();
     logForward = new wahmm::real_t*[numberOfStates]; // forward variables
 
+    // std::cout << "Initiating FMC..." << std::endl;
     c->initForward();
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
@@ -59,9 +62,11 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
         // alpha_0(i) = pi_i * E_1(i)
         logForward[i][0] = m.mLogPi[i] + compute_e(m, i, c->blockData());
     }
+    // std::cout << "Initialization done. Starting induction..." << std::endl;
     // induction
     size_t blockCounter = 1;
     while(c->next()){
+        // std::cout << "Iteration with blockCounter=" << blockCounter << std::endl;
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
             logForward[j][blockCounter] = -infin;
             for(int i = 0; i < numberOfStates; i++){ // starting state
@@ -74,13 +79,14 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
         }
         blockCounter++;
     }
-
+    // std::cout << "Induction done." << std::endl;
     c->initForward();
 
+    // std::cout << "Exiting FMC..." << std::endl;
     return logForward;
 }
 
-/*
+
 wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     wahmm::real_t **logBackward;
     size_t numberOfStates = m.mStates.size();
@@ -91,25 +97,21 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
         logBackward[i] = new wahmm::real_t[c->blocksNumber()];
-        logBackward[i][blockCounter--] = compute_e(m, i, c->reverseBlockData());
+        logBackward[i][blockCounter--] = 1;
     }
     // induction
-    while(c->reverseNext() && blockCounter >= 0){ //c->reverseNext() will never return false because the last block should not be considered
+    while(blockCounter >= 0){
         for(size_t i = 0; i < numberOfStates; i++){ // arriving state
             logBackward[i][blockCounter] = -infin;
             for(size_t j = 0; j < numberOfStates; j++){ // starting state
                 // beta_t(i) = sum_{j=1}^N a_{ij} b_j(O_{t+1}) beta_{t+1}(j)
                 logBackward[i][blockCounter] = sum_logarithms(logBackward[i][blockCounter],
                     m.mLogTransitions[i][j] +
-                    m.mStates[j].logPdf(c->reverseAvg()) +
+                    compute_e(m, j, c->reverseBlockData()) +
                     logBackward[j][blockCounter+1]);
             }
         }
-        blockCounter--;
-        for(size_t i = 0; i < numberOfStates; i++){
-            logBackward[i][blockCounter] = logBackward[i][blockCounter+1] +
-                (c->reverseSize() - 1) * (m.mLogTransitions[i][i] + m.mStates[i].logPdf(c->reverseAvg()));
-        }
+        c->reverseNext();
         blockCounter--;
     }
 
@@ -118,36 +120,33 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     return logBackward;
 }
 
-/*
+
 
 void decoding_compressed(Model &m, Compressor *c, bool verbose){
     wahmm::real_t **logViterbi, **statesViterbi;
     size_t numberOfStates = m.mStates.size();
     logViterbi = new wahmm::real_t*[numberOfStates];
     statesViterbi = new wahmm::real_t*[numberOfStates];
-    std::vector<size_t> stateDurations;
-
+    std::vector<size_t> blockLengths;
     if(verbose)
         std::cout << "+++++ Decoding Compressed Problem +++++" << std::endl;
 
+    c->initForward();
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
-        logViterbi[i] = new wahmm::real_t[2*c->blocksNumber()];
+        logViterbi[i] = new wahmm::real_t[c->blocksNumber()];
         statesViterbi[i] = new wahmm::real_t[c->blocksNumber()];
         // delta_0(i) = pi_i * b_i(O_1)
-        logViterbi[i][0] = m.mLogPi[i] + m.mStates[i].logPdf(c->blockAvg());
+        logViterbi[i][0] = m.mLogPi[i] + compute_e(m, i, c->blockData());
         statesViterbi[i][0] = -1; // psi_0(i) = 0
-        stateDurations.push_back(c->blockSize());
-        logViterbi[i][1] = logViterbi[i][0] + (c->blockSize()-1) *
-            (m.mLogTransitions[i][i] + m.mStates[i].logPdf(c->blockAvg()));
     }
+    blockLengths.push_back(c->blockSize());
     // induction
     wahmm::real_t currentMax = -infin;
     wahmm::real_t currentSum = 0;
-    size_t blockCounter = 2;
-    size_t currentState = -1;
+    int blockCounter = 1;
+    int currentState = -1;
     while(c->next()){ // observations
-        // std::cout << "blockCounter: " << blockCounter << std::endl;
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
             logViterbi[j][blockCounter] = -infin;
             // delta_t(j) = max_{1<=i<=N} delta_{t-1}(i)a_{ij} ...
@@ -159,20 +158,17 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
                 }
             }
             // ... b_{j}(O_{t})
-            logViterbi[j][blockCounter] = currentMax + m.mStates[j].logPdf(c->blockAvg());
+            logViterbi[j][blockCounter] = currentMax + compute_e(m, j, c->blockData());
             // psi_t(j) = argmax[...]
-            statesViterbi[j][blockCounter/2] = currentState;
+            statesViterbi[j][blockCounter] = currentState;
             // re-initialize max variables for next loop
             currentMax = -infin;
             currentState = -1;
         }
-        blockCounter++;
-        for(size_t j = 0; j < numberOfStates; j++){
-            logViterbi[j][blockCounter] = logViterbi[j][blockCounter-1] + (c->blockSize()-1) *
-                (m.mLogTransitions[j][j] + m.mStates[j].logPdf(c->blockAvg()));
-        }
+        blockLengths.push_back(c->blockSize());
         blockCounter++;
     }
+
     // termination
     wahmm::real_t logDecoding;
     list<size_t> viterbiPath;
@@ -186,10 +182,10 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
         }
     }
     viterbiPath.push_front(currentState);
-    for(blockCounter--; blockCounter > 0; blockCounter -= 2){
+    for(; blockCounter > 0; blockCounter--){
         // if currentState == -1, impossible path? can it happen?
         if(currentState >= 0)
-            currentState = statesViterbi[currentState][blockCounter/2];
+            currentState = statesViterbi[currentState][blockCounter];
         else
             std::cerr << "[Error] Impossible Viterbi path!" << std::endl;
         viterbiPath.push_front(currentState);
@@ -197,7 +193,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
 
     // print results
     if(verbose){
-        printMatrixSummary(logViterbi, numberOfStates, 2*c->blocksNumber(),
+        printMatrixSummary(logViterbi, numberOfStates, c->blocksNumber(),
             "logViterbi", false);
         std::cout << "Most likely path: " << std::endl;
         int i = 0;
@@ -214,9 +210,14 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
     }
 
     // print to file for comparison with other implementations
-    std::ofstream ofs ("results/wahmm_viterbi", std::ofstream::out);
-    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++)
-        ofs << *it << " ";
+    std::ofstream ofs ("results/wahmm_viterbi_compressed", std::ofstream::out);
+    size_t lenIndex = 0;
+    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++){
+        for(size_t blen = 0; blen < blockLengths[lenIndex]; blen++){
+            ofs << *it << " ";
+        }
+        lenIndex++;
+    }
     ofs.close();
 
     c->initForward();
@@ -227,7 +228,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
 
 
 
-
+/*
 
 
 wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minObs,

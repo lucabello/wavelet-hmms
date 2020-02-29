@@ -14,21 +14,11 @@ model.add_transition(s2, s2, 0.9999)
 model.bake()
 
 # generate samples from the model
-chosen_len = 10000
+chosen_len = 100000000
 samples = model.sample(length=chosen_len, path=True, random_state=None)
 observations = samples[0]
 state_path = samples[1]
 
-# save readable data
-out_file = open("data/observations", "w")
-obs_written = 1
-for o in observations:
-    if obs_written == len(observations):
-        out_file.write(str(o))
-    else:
-        out_file.write(str(o) + " ")
-    obs_written = obs_written + 1
-out_file.close()
 # save binary data
 out_file = open("data/bin-observations", "wb")
 np.array(observations, dtype=np.float64).tofile(out_file)

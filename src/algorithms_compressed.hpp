@@ -92,13 +92,15 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     size_t numberOfStates = m.mStates.size();
     logBackward = new wahmm::real_t*[numberOfStates]; // forward variables
 
+
     c->initBackward();
     int blockCounter = c->blocksNumber() - 1;
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
         logBackward[i] = new wahmm::real_t[c->blocksNumber()];
-        logBackward[i][blockCounter--] = 1;
+        logBackward[i][blockCounter] = 1;
     }
+    blockCounter--;
     // induction
     while(blockCounter >= 0){
         for(size_t i = 0; i < numberOfStates; i++){ // arriving state
@@ -114,7 +116,6 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
         c->reverseNext();
         blockCounter--;
     }
-
     c->initBackward();
 
     return logBackward;
@@ -228,12 +229,11 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
 
 
 
-/*
 
-
-wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minObs,
+wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minSum,
     wahmm::real_t **logEpsilon,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
+    wahmm::real_t *logTrDen,
     wahmm::real_t *logAverage, wahmm::real_t *logVariance, bool verbose){
 
     wahmm::real_t logEvaluation; // P(O|lambda)
@@ -246,8 +246,6 @@ wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minObs,
     for(size_t i = 0; i < numberOfStates; i++){
         for(size_t j = 0; j < numberOfStates; j++)
             logEpsilon[i][j] = -infin;
-        logBackward[i] = 0;
-        prevLogBackward[i] = 0;
         logGammaSum[i] = -infin;
         logAverage[i] = -infin;
         logVariance[i] = -infin;
@@ -257,114 +255,100 @@ wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minObs,
     logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
         logEvaluation = sum_logarithms(logEvaluation,
-            logForward[i][2*c->blocksNumber() - 1]);
+            logForward[i][c->blocksNumber()-1]);
     }
     logBackward = backward_matrix_compressed(m, c);
 
-    // only consider the end of the blocks as representative for the block
-    for(size_t bc = 1; bc < 2*c->blocksNumber() - 1; bc += 2){
-        for(size_t i = 0; i < numberOfStates; i++){
-            logGamma[i][bc/2] = logForward[i][bc] + logBackward[i][bc];
-            logGammaSum[i] = sum_logarithms(logGammaSum[i], logGamma[i][bc/2]);
-            // update the accumulators
-            logAverage[i] = sum_logarithms(logAverage[i],
-                logGamma[i][bc/2] + log(c->blockSum()-minSum));
-        }
-        // intra block
-        for(size_t i = 0; i < numberOfStates; i++){
-            logEpsilon[i][i] = sum_logarithms(logEpsilon[i][i],
-                logForward[i][bc] +
-                m.mLogTransitions[i][i] +
-                m.mStates[i].logPdf(obs[bc+1]) +
-                logBackward[i][bc+1]); // -logEvaluation (it simplifies)
-                //prevLogBackward is beta_{t+1}
-        }
-        // inter blocks
-        for(size_t i = 0; i < numberOfStates; i++){
-            for(size_t j = 0; j < numberOfStates; j++){
-                logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
-                    m.mStates[j].logPdf(obs[t+1]) +
-                    logBackward[j][bc+1]); // -logEvaluation (it simplifies)
-                    //prevLogBackward is beta_{t+1}
-                    if(i == j){ //also add intrablock summary
-                        logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
-                            logForward[i][bc] +
-                            m.mLogTransitions[i][j] +
-                            m.mStates[j].logPdf(obs[t+1]) +
-                            logBackward[j][bc+1]);
-                    }
-            }
-        }
-    }
-    // start from T-1
-    for(int t = obs.size()-2; t >= 0; t--){
-        // calculate backward variable for the next iteration
-        for(int i = 0; i < numberOfStates; i++){
-            logBackward[i] = -infin;
-            for(size_t j = 0; j < numberOfStates; j++){
-                logBackward[i] = sum_logarithms(logBackward[i],
-                    m.mLogTransitions[i][j] +
-                    m.mStates[j].logPdf(obs[t+1]) +
-                    prevLogBackward[j]);
-            }
-        }
-        // calculate epsilon and increase estimates for observation t
-        for(size_t i = 0; i < numberOfStates; i++){
-            for(size_t j = 0; j < numberOfStates; j++){
-                logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
-                    logForward[i][t] +
-                    m.mLogTransitions[i][j] +
-                    m.mStates[j].logPdf(obs[t+1]) +
-                    prevLogBackward[j]); // -logEvaluation (it simplifies)
-                    //prevLogBackward is beta_{t+1}
-            }
-            // calculate gamma_t(i) for the current t
-            // logBackward is beta_t
-            logGamma[i][t] = logForward[i][t] + logBackward[i];
-            logGammaSum[i] = sum_logarithms(logGammaSum[i], logGamma[i][t]);
-            // update the accumulators
-            logAverage[i] = sum_logarithms(logAverage[i],
-                logGamma[i][t] + log(obs[t]-minObs));
-        }
-        // to avoid copying the array
-        tmp = logBackward;
-        logBackward = prevLogBackward;
-        prevLogBackward = tmp;
-    }
-    // compute final reestimated parameters
-    wahmm::real_t currentNewAverage;
-    for(size_t i = 0; i < numberOfStates; i++){
-        for(size_t j = 0; j < numberOfStates; j++){
-            logEpsilon[i][j] -= logGammaSum[i]; // a_{ij}
-        }
-        logPi[i] = logGamma[i][0] - logEvaluation; // pi_i = gamma_1(i)
-        logAverage[i] -= logGammaSum[i];
-        currentNewAverage = exp(logAverage[i])+minObs;
-        for(size_t t = 0; t < obs.size()-1; t++){
-            logVariance[i] = sum_logarithms(logVariance[i],
-                logGamma[i][t] + 2*log(abs(obs[t] - currentNewAverage)));
-        }
-        logVariance[i] -= logGammaSum[i];
+    c->initForward();
+    // iterate over blocks
+    int bc = 0; // block counter
+    size_t nBlocks = c->blocksNumber();
+    blockdata currentBd = c->blockData();
+
+    wahmm::real_t logEvalGammaSum = -infin;
+    for(int i = 0; i < numberOfStates; i++){
+        logEvalGammaSum = sum_logarithms(logEvalGammaSum,
+            logForward[i][0] +
+            logBackward[i][0]);
     }
 
-    // update parameters in the model
+    while(c->next()){ // "current block" is w+1
+        for(int i = 0; i < numberOfStates; i++){
+            for(int j = 0; j < numberOfStates; j++){
+                logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
+                    logForward[i][bc] +
+                    m.mLogTransitions[i][j] +
+                    compute_e(m, j, c->blockData()) +
+                    logBackward[j][bc+1]);
+                if(i == j){
+                    logEpsilon[i][j] = sum_logarithms(logEpsilon[i][j],
+                        log(currentBd.nw - 1) +
+                        logForward[i][bc] +
+                        logBackward[i][bc]);
+                }
+            }
+            logGamma[i][bc] = logForward[i][bc] + logBackward[i][bc];
+            logGammaSum[i] = sum_logarithms(logGammaSum[i],
+                log(currentBd.nw) + logGamma[i][bc]);
+        }
+        currentBd = c->blockData();
+        bc++;
+    }
+    // last block was not processed
+    for(int i = 0; i < numberOfStates; i++){
+        logEpsilon[i][i] = sum_logarithms(logEpsilon[i][i],
+            log(currentBd.nw - 1) +
+            logForward[i][bc] +
+            logBackward[i][bc]);
+        logGamma[i][bc] = logForward[i][bc] + logBackward[i][bc];
+        logGammaSum[i] = sum_logarithms(logGammaSum[i],
+            log(currentBd.nw) + logGamma[i][bc]);
+    }
+
+    // reestimated parameters
+    for(int i = 0; i < numberOfStates; i++){
+        logPi[i] = logGamma[i][0] - logEvalGammaSum;
+        for(int j = 0; j < numberOfStates; j++){
+            logEpsilon[i][j] -= logGammaSum[i];
+        }
+        c->initForward();
+        logAverage[i] = 0;
+        wahmm::real_t v;
+        for(int b = 0; b < nBlocks; b++){
+            currentBd = c->blockData();
+            v = currentBd.s1;
+            logAverage[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
+            c->next();
+        }
+        c->initForward();
+        logVariance[i] = 0;
+        for(int b = 0; b < nBlocks; b++){
+            currentBd = c->blockData();
+            v = currentBd.s2 - 2*logAverage[i]*currentBd.s1 + currentBd.nw*logAverage[i]*logAverage[i];
+            logVariance[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
+            c->next();
+        }
+    }
+
+    //update model
     for(size_t i = 0; i < numberOfStates; i++){
         m.mLogPi[i] = logPi[i];
         for(size_t j = 0; j < numberOfStates; j++){
             m.mLogTransitions[i][j] = logEpsilon[i][j];
         }
-        m.mStates[i].updateParameters(exp(logAverage[i])+minObs,
-            sqrt(exp(logVariance[i])));
+        m.mStates[i].updateParameters(logAverage[i],
+            sqrt(logVariance[i]));
     }
 
     freeMatrix(logForward, numberOfStates);
+    freeMatrix(logBackward, numberOfStates);
 
     return logEvaluation;
 }
 
 
 
-void training_compressed_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
+void training_compressed_wrapper(Model& m, Compressor *c, wahmm::real_t thresh,
     size_t maxIterations, bool verbose){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
@@ -372,6 +356,7 @@ void training_compressed_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahm
     wahmm::real_t *prevLogBackward = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()]; // computed at last
     wahmm::real_t **logGamma;
+    wahmm::real_t *logTrDen = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *logGammaSum = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()]; // one for each state
     wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()]; // one for each state
@@ -380,30 +365,31 @@ void training_compressed_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahm
     logGamma = new wahmm::real_t*[m.mStates.size()];
     for(size_t i = 0; i < m.mStates.size(); i++){
         logEpsilon[i] = new wahmm::real_t[m.mStates.size()];
-        logGamma[i] = new wahmm::real_t[obs.size()-1];
+        logGamma[i] = new wahmm::real_t[c->blocksNumber()];
     }
 
-
-    wahmm::real_t minObs = 0;
-    for(auto it = obs.begin(); it != obs.end(); it++){
-        if(*it < minObs)
-            minObs = *it;
-    }
-    minObs -= 1; // to avoid crash when 0 is saves as -0.0000000001
+    c->buildReverse();
+    c->initForward();
+    wahmm::real_t minSum = 0;
+    do {
+        if(c->blockData().s1 < minSum)
+            minSum = c->blockData().s1;
+    } while(c->next());
+    c->initForward();
+    // std::cout << "minSum: " << minSum << std::endl;
+    minSum -= 1; // to avoid crash when 0 is saves as -0.0000000001
     wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
     if(verbose)
-        std::cout << "+++++ Training problem +++++" << std::endl;
+        std::cout << "+++++ Training Compressed Problem +++++" << std::endl;
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
-        newEvaluation = training_problem(m, obs, minObs,
-            logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
-            logGammaSum, logAverage, logVariance, verbose);
-        // newEvaluation = training_problem_scaled(m, obs, minObs,
-        //     logEpsilon, logPi, logGamma,
-        //     logGammaSum, logAverage, logVariance);
+        newEvaluation = training_compressed(m, c, minSum,
+            logEpsilon, logPi, logGamma,
+            logGammaSum, logTrDen, logAverage, logVariance, verbose);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
+        m.printModel();
     }
     if(verbose){
         std::cout << "Number of iterations: " << iter << std::endl;
@@ -422,6 +408,6 @@ void training_compressed_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahm
     delete[] logAverage;
     delete[] logVariance;
 }
-*/
+
 
 #endif

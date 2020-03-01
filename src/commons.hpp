@@ -35,6 +35,8 @@ using std::log;	// natural log
 using std::sqrt;
 using std::abs;
 
+#include <math.h>
+
 using std::isfinite;
 
 #include <algorithm>

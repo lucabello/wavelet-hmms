@@ -181,6 +181,8 @@ int main(int argc, const char* argv[]){
             evaluation_compressed(model, compressor, verbose);
         if(decoding)
             decoding_compressed(model, compressor, verbose);
+        if(training)
+            training_compressed_wrapper(model, compressor, 1e-9, 100, verbose);
     }
 
     if(result.count("export")){

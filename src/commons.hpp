@@ -1,6 +1,8 @@
 #ifndef WAHMM_COMMONS_HPP
 #define WAHMM_COMMONS_HPP
 
+#define PATH_OUT std::string("results/")
+
 #include <cstdint>
 
 #include <cstddef>

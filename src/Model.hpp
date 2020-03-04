@@ -49,7 +49,7 @@ Model::Model(std::vector<State>& states, std::vector<wahmm::real_t>& relativeTr,
 }
 
 void Model::printModel(){
-    std::cout << "----------" << std::endl;
+    std::cout << "[>] Model information:" << std::endl;
     for(State s : mStates){
         cout << s.name();
         cout << " | Mean: " << s.mean();

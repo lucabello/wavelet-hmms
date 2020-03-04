@@ -74,72 +74,61 @@ wahmm::real_t compute_e(Model& m, size_t j, blockdata bd){
 */
 void printMatrixSummary(wahmm::real_t **m, size_t rows, size_t cols,
     std::string matrixName, bool byRow){
-    cout << "=== " << matrixName << " ===" << endl;
+    cout << "[>] === " << matrixName << " ===" << endl;
     if(byRow){
         if(cols <= 5){
             for(int x = 0; x < rows; x++){
-                cout << "[ ";
                 for(int y = 0; y < rows; y++)
-                    cout << m[x][y] << " ";
-                cout << "]" << endl;
+                    cout << m[x][y] << "\t";
+                cout << endl;
             }
         }
         else{
-            cout << "[ ";
             for(int y = 0; y < cols; y++)
-                cout << m[0][y] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[0][y] << "\t";
+            cout << endl;
             for(int y = 0; y < cols; y++)
-                cout << m[1][y] << " ";
-            cout << "]" << endl;
+                cout << m[1][y] << "\t";
+            cout << endl;
             cout << "..." << endl;
-            cout << "[ ";
             for(int y = 0; y < cols; y++)
-                cout << m[rows-3][y] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[rows-3][y] << "\t";
+            cout << endl;
             for(int y = 0; y < cols; y++)
-                cout << m[rows-2][y] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[rows-2][y] << "\t";
+            cout << endl;
             for(int y = 0; y < cols; y++)
-                cout << m[rows-1][y-1] << " ";
-            cout << "]" << endl;
+                cout << m[rows-1][y-1] << "\t";
+            cout << endl;
         }
     } else {
         if(cols <= 5){
             for(int y = 0; y < cols; y++){
-                cout << "[ ";
                 for(int x = 0; x < rows; x++)
-                    cout << m[x][y] << " ";
-                cout << "]" << endl;
+                    cout << m[x][y] << "\t";
+                cout << endl;
             }
         }
         else{
-            cout << "[ ";
             for(int x = 0; x < rows; x++)
-                cout << m[x][0] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[x][0] << "\t";
+            cout << endl;
             for(int x = 0; x < rows; x++)
-                cout << m[x][1] << " ";
-            cout << "]" << endl;
+                cout << m[x][1] << "\t";
+            cout << endl;
             cout << "..." << endl;
-            cout << "[ ";
             for(int x = 0; x < rows; x++)
-                cout << m[x][cols-3] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[x][cols-3] << "\t";
+            cout << endl;
             for(int x = 0; x < rows; x++)
-                cout << m[x][cols-2] << " ";
-            cout << "]" << endl;
-            cout << "[ ";
+                cout << m[x][cols-2] << "\t";
+            cout << endl;
             for(int x = 0; x < rows; x++)
-                cout << m[x][cols-1] << " ";
-            cout << "]" << endl;
+                cout << m[x][cols-1] << "\t";
+            cout << endl;
         }
     }
+    cout << "======" << endl;
 }
 
 #endif

@@ -19,13 +19,12 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c);
 * @param c compressor holding the HaMMLET interface
 * @param verbose if true prints result informations
 */
-void evaluation_compressed(Model& m, Compressor *c, bool verbose){
+void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool tofile){
     wahmm::real_t **logForward;
     wahmm::real_t logEvaluation;
     size_t numberOfStates = m.mStates.size();
 
-    if(verbose)
-        std::cout << "+++++ Evaluation Compressed Problem +++++" << std::endl;
+    std::cout << "[>] +++ Compressed Evaluation Problem +++" << std::endl;
 
     logForward = forward_matrix_compressed(m, c); // initialization and induction
     // std::cout << "Starting termination..." << std::endl;
@@ -40,8 +39,17 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose){
     // print results
     if(verbose){
         printMatrixSummary(logForward, numberOfStates, c->blocksNumber(),
-            "logForward compressed", false);
-        std::cout << "log[ P(O|lambda) ] = " << logEvaluation << std::endl;
+            "Blocks Forward (log)", false);
+    }
+    std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
+    if(tofile){
+        if(verbose)
+            std::cout << "[>] Saving compressed evaluation log probability to file " << PATH_OUT << "compressed_evaluation_prob ... " << std::flush;
+        std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob", std::ofstream::out);
+        ofs << logEvaluation;
+        ofs.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
     }
 
     freeMatrix(logForward, numberOfStates);
@@ -123,14 +131,14 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
 
 
 
-void decoding_compressed(Model &m, Compressor *c, bool verbose){
+void decoding_compressed(Model &m, Compressor *c, bool verbose, bool tofile){
     wahmm::real_t **logViterbi, **statesViterbi;
     size_t numberOfStates = m.mStates.size();
     logViterbi = new wahmm::real_t*[numberOfStates];
     statesViterbi = new wahmm::real_t*[numberOfStates];
     std::vector<size_t> blockLengths;
-    if(verbose)
-        std::cout << "+++++ Decoding Compressed Problem +++++" << std::endl;
+
+    std::cout << "[>] +++ Compressed Decoding Problem +++" << std::endl;
 
     c->initForward();
     // initialization
@@ -187,39 +195,55 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
         // if currentState == -1, impossible path? can it happen?
         if(currentState >= 0)
             currentState = statesViterbi[currentState][blockCounter];
-        else
-            std::cerr << "[Error] Impossible Viterbi path!" << std::endl;
+        else {
+            std::cerr << "[Warning] Impossible Viterbi path!" << std::endl;
+            break;
+        }
         viterbiPath.push_front(currentState);
     }
 
     // print results
     if(verbose){
         printMatrixSummary(logViterbi, numberOfStates, c->blocksNumber(),
-            "logViterbi", false);
-        std::cout << "Most likely path: " << std::endl;
-        int i = 0;
-        for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
-            // only print first 5 and last 5 states
-            if(i == 5)
-                std::cout << "... ";
-            if(i >= 5 && i < viterbiPath.size() - 5)
-                continue;
-            std::cout << *it << " ";
-        }
-        std::cout << std::endl;
-        std::cout << "log[ P(Q|O,lambda) ] = " << currentMax << std::endl;
+            "Block Viterbi (log)", false);
     }
+    std::cout << "[>] Most likely path: " << std::endl;
+    int i = 0;
+    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
+        // only print first 5 and last 5 states
+        if(i == 5)
+            std::cout << "... ";
+        if(i >= 5 && i < viterbiPath.size() - 5)
+            continue;
+        std::cout << *it << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "[>] log[ P(Q|O,lambda) ]: " << currentMax << std::endl;
 
     // print to file for comparison with other implementations
-    std::ofstream ofs ("results/wahmm_viterbi_compressed", std::ofstream::out);
-    size_t lenIndex = 0;
-    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++){
-        for(size_t blen = 0; blen < blockLengths[lenIndex]; blen++){
-            ofs << *it << " ";
+    if(tofile){
+        if(verbose)
+            std::cout << "[>] Saving compressed Viterbi path to file " << PATH_OUT << "compressed_decoding_path ..." << std::flush;
+        std::ofstream ofsPath (PATH_OUT + "compressed_decoding_path", std::ofstream::out);
+        size_t lenIndex = 0;
+        for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++){
+            for(size_t blen = 0; blen < blockLengths[lenIndex]; blen++){
+                ofsPath << *it << " ";
+            }
+            lenIndex++;
         }
-        lenIndex++;
+        ofsPath.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
+        if(verbose)
+            std::cout << "[>] Saving compressed Viterbi log likelihood to file " << PATH_OUT << "compressed_decoding_prob ... " << std::flush;
+        std::ofstream ofsProb (PATH_OUT + "compressed_decoding_prob", std::ofstream::out);
+        ofsProb << currentMax;
+        ofsProb.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
+
     }
-    ofs.close();
 
     c->initForward();
 
@@ -230,7 +254,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose){
 
 
 
-wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minSum,
+wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::real_t minSum,
     wahmm::real_t **logEpsilon,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
     wahmm::real_t *logTrDen,
@@ -348,8 +372,8 @@ wahmm::real_t training_compressed(Model& m, Compressor *c, wahmm::real_t minSum,
 
 
 
-void training_compressed_wrapper(Model& m, Compressor *c, wahmm::real_t thresh,
-    size_t maxIterations, bool verbose){
+void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
+    size_t maxIterations, bool verbose, bool tofile){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
     wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
@@ -381,22 +405,36 @@ void training_compressed_wrapper(Model& m, Compressor *c, wahmm::real_t thresh,
     wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
-    if(verbose)
-        std::cout << "+++++ Training Compressed Problem +++++" << std::endl;
+    
+    std::cout << "[>] +++ Compressed Training Problem +++" << std::endl;
+
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
-        newEvaluation = training_compressed(m, c, minSum,
+        newEvaluation = compressed_baum_welch_iteration(m, c, minSum,
             logEpsilon, logPi, logGamma,
             logGammaSum, logTrDen, logAverage, logVariance, verbose);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
-        m.printModel();
+        if(verbose){
+            std::cout << "[>] Iteration: " << iter << std::endl;
+            std::cout << "[>] Evaluation improvement (log): " << logImprovement << std::endl;
+            std::cout << "[>] New P(O | lambda): " << newEvaluation << std::endl;
+            m.printModel();
+        }
     }
-    if(verbose){
-        std::cout << "Number of iterations: " << iter << std::endl;
-        m.printModel();
+    std::cout << "[>] Number of iterations: " << iter << std::endl;
+    m.printModel();
+
+    if(tofile){
+        if(verbose)
+            std::cout << "[>] Saving trained model to file " << PATH_OUT << "training_model ... " << std::flush;
+        std::ofstream modelFileOutput(PATH_OUT + "compressed_training_model");
+        if(modelFileOutput.is_open()){
+            modelFileOutput << m;
+        }
+        modelFileOutput.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
     }
-
-
 
     // free variables
     freeMatrix(logEpsilon, m.mStates.size());

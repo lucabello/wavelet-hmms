@@ -21,9 +21,9 @@ int main(int argc, const char* argv[]){
     std::vector<wahmm::real_t> relPi;
     std::vector<wahmm::real_t> observations;
     std::vector<wahmm::real_t> statePath;
-    std::string fileObs, filePath, fileModelIn, fileModelOut;
+    std::string fileObs, filePath, fileModelIn, pathOut;
     bool evaluation = false, decoding = false, training = false;
-    bool binary = false;
+    bool binary = false, tofile = false;
     bool compressed = false;
     bool verbose = false;
     Compressor *compressor;
@@ -65,9 +65,9 @@ int main(int argc, const char* argv[]){
         }
         model = Model(states, relTrans, relPi);
     }
-    if(result.count("export")){
-        fileModelOut = result["export"].as<std::string>();
-    }
+    // if(result.count("output")){
+    //     pathOut = result["output"].as<std::string>();
+    // }
     if(result.count("obs")){
         fileObs = result["obs"].as<std::string>();
     }
@@ -76,6 +76,8 @@ int main(int argc, const char* argv[]){
     }
     if(result.count("binary"))
         binary = true;
+    if(result.count("tofile"))
+        tofile = true;
     if(result.count("evaluation"))
         evaluation = true;
     if(result.count("decoding"))
@@ -102,6 +104,8 @@ int main(int argc, const char* argv[]){
     }
     if(!compressed){
         if(!binary){
+            if(verbose)
+                std::cout << "[>] Reading observations... " << std::endl;
             wahmm::real_t number;
             // efficient file reading in C style
             // Read the file with input observations
@@ -114,8 +118,12 @@ int main(int argc, const char* argv[]){
                 return -1;
             }
             fclose(finObs);
+            if(verbose)
+                std::cout << "[>] ... done." << std::endl;
         }
         else {
+            if(verbose)
+                std::cout << "[>] Reading observations from binary file... " << std::endl;
             finObs = fopen ( fileObs.c_str() , "rb" );
             if (finObs==NULL){
                 std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
@@ -127,6 +135,8 @@ int main(int argc, const char* argv[]){
                 observations.push_back((wahmm::real_t)n);
             // terminate
             fclose (finObs);
+            if(verbose)
+                std::cout << "[>] ... done." << std::endl;
         }
         // // not efficient file reading in C++ style
         // // Read the file with input observations
@@ -145,13 +155,19 @@ int main(int argc, const char* argv[]){
         // std::cout << "Read " << observations.size() << " observations from file." << std::endl;
     }
     else {
+        if(verbose)
+            std::cout << "[>] Creating Compressor... " << std::endl;
         compressor = new Compressor(fileObs, binary);
+        if(verbose)
+            std::cout << "[>] ... done." << std::endl;
     }
     // // Read the file with input state path
     if(filePath.empty()){
         std::cerr << "[Warning] Input file for generating path not specified" << std::endl;
     }
         else {
+        if(verbose)
+            std::cout << "[>] Reading generating path... " << std::endl;
         wahmm::real_t number;
         finPath = fopen(filePath.c_str(), "r");
         if(finPath != NULL){
@@ -162,35 +178,32 @@ int main(int argc, const char* argv[]){
             return -1;
         }
         fclose(finPath);
+        if(verbose)
+            std::cout << "[>] ... done." << std::endl;
     }
 
     model.printModel();
 
     if(!compressed){
-        std::cout << "[>] Starting algorithms" << std::endl;
+        if(verbose)
+            std::cout << "[>] Starting standard algorithms." << std::endl;
         if(evaluation)
-            evaluation_problem(model, observations, verbose);
+            evaluation_problem(model, observations, verbose, tofile);
         if(decoding)
-            decoding_problem(model, observations, verbose);
+            decoding_problem(model, observations, verbose, tofile);
         if(training)
-            training_problem_wrapper(model, observations, 1e-9, 100, verbose);
+            training_problem(model, observations, 1e-9, 100, verbose,
+                tofile);
     }
     else {
-        std::cout << "[>] Starting compressed algorithms" << std::endl;
+        if(verbose)
+            std::cout << "[>] Starting compressed algorithms" << std::endl;
         if(evaluation)
-            evaluation_compressed(model, compressor, verbose);
+            evaluation_compressed(model, compressor, verbose, tofile);
         if(decoding)
-            decoding_compressed(model, compressor, verbose);
+            decoding_compressed(model, compressor, verbose, tofile);
         if(training)
-            training_compressed_wrapper(model, compressor, 1e-9, 100, verbose);
-    }
-
-    if(result.count("export")){
-        std::ofstream modelFileOutput(fileModelOut);
-        if(modelFileOutput.is_open()){
-            modelFileOutput << model;
-        }
-        modelFileOutput.close();
+            training_compressed(model, compressor, 1e-9, 100, verbose, tofile);
     }
 
 

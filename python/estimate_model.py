@@ -8,6 +8,7 @@ from math import sqrt, log
 use_binary_file = True
 input_filename = "data/bin_observations"
 output_filename = "data/kmeans_model"
+labels_out_filename = "data/kmeans_labels"
 
 # read observations from input file
 in_file = open(input_filename, "r")
@@ -49,4 +50,10 @@ for a in range(0, k): # transitions, from uniform distribution
         out_file.write(str(log(1/k)) + " ");
 for a in range(0, k): # initial distributions, from uniform distribution
     out_file.write(str(log(1/k)) + " ");
+out_file.close()
+
+# write predicted labels for plotting purposes
+out_file = open(labels_out_filename, "w")
+for x in kmeans.labels_ :
+    out_file.write(str(x) + " ") # number of states
 out_file.close()

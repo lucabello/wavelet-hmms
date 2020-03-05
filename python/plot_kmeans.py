@@ -1,44 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import matplotlib.pyplot as plt
 from math import exp
-
-# OPTIONS
-input_model_filename = "data/kmeans_model"
-input_labels_filename = "data/kmeans_labels"
-input_obs_filename = "data/observations"
+import utilities_io as uio
+import utilities_kmeans as ukm
 
 # read kmeans model from input file
-in_file = open(input_model_filename, "r")
-line = in_file.read()
-v = line.split()
-n_states = int(v[0])
-means = []
-std_devs = []
-offset = 1
-for i in range(0, n_states):
-    means.append(float(v[offset + 2*i]))
-    std_devs.append(float(v[offset + 2*i + 1]))
-transitions = []
-offset = 1 + n_states*2
-for i in range(0, n_states):
-    for j in range(0, n_states):
-        transitions.append(exp(float(v[offset])))
-        offset = offset + 1
-initial = []
-for i in range(0, n_states):
-    initial.append(exp(float(v[offset])))
-    offset = offset + 1
-in_file.close()
+n_states, means, std_devs, transitions, initial = ukm.read_kmeans_model()
 
 # read kmeans labels from file
-in_file = open(input_labels_filename, "r")
-line = in_file.read()
-string_list = line.split()
-labels_list = []
-for s in string_list:
-    labels_list.append(int(s))
+labels = ukm.read_kmeans_labels()
 
 # read observations from input file
-in_file = open(input_obs_filename, "r")
+in_file = open(uio.observations_file, "r")
 line = in_file.read()
 string_list = line.split()
 value_list = []
@@ -46,12 +20,11 @@ value_x = []
 for i in range(0, n_states):
     value_list.append([])
     value_x.append([])
-print(value_list)
 input_limit = 1000000
 counter = 0
 for s in string_list:
-    value_list[labels_list[counter]].append(float(s))
-    value_x[labels_list[counter]].append(counter)
+    value_list[labels[counter]].append(float(s))
+    value_x[labels[counter]].append(counter)
     counter = counter + 1
     if counter > input_limit:
         break

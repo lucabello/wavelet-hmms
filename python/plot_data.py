@@ -1,33 +1,29 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import matplotlib.pyplot as plt
+import utilities_io as uio
 
-in_file = open("data/observations", "r")
-line = in_file.read()
-string_list = line.split()
-value_list = []
-input_limit = 10000
-counter = 1
-for s in string_list:
-    value_list.append(float(s))
-    counter = counter + 1
-    if counter > input_limit:
-        break
-in_file.close()
+# OPTIONS
+use_binary_file = True
+input_limit = 1000
 
+if use_binary_file:
+    observations = uio.read_observations_binary()
+    state_path = uio.read_path()
+else:
+    observations = uio.read_observations(limit=input_limit)
+    state_path = uio.read_path(limit=input_limit)
 
-path_file = open("data/path", "r")
-line = path_file.read()
-string_list = line.split()
-path_list = []
-counter = 1
-for s in string_list:
-    path_list.append(int(s)*10)
-    counter = counter + 1
-    if counter > input_limit:
-        break
-path_file.close()
+n_states, means, std_devs, transitions, initial = uio.read_model()
+means_path = state_path
+for i in range(0, len(state_path)):
+    means_path[i] = means[state_path[i]]
 
-x = range(1,input_limit+1)
+if input_limit > 0 and use_binary_file == False:
+    x = range(1,input_limit+1)
+else:
+    x = range(1,len(observations)+1)
 
-plt.scatter(x, value_list, color='blue')
-plt.step(x, path_list, color='red')
+plt.scatter(x, observations, color='blue')
+plt.step(x, means_path, color='red')
 plt.show()

@@ -45,6 +45,7 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
         if(verbose)
             std::cout << "[>] Saving evaluation log probability to file " << PATH_OUT << "evaluation_prob ... " << std::flush;
         std::ofstream ofs (PATH_OUT + "evaluation_prob", std::ofstream::out);
+        ofs.precision(std::numeric_limits<double>::max_digits10);
         ofs << logEvaluation;
         ofs.close();
         if(verbose)
@@ -229,6 +230,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
         if(verbose)
             std::cout << "[>] Saving Viterbi log likelihood to file " << PATH_OUT << "decoding_prob ... " << std::flush;
         std::ofstream ofsProb (PATH_OUT + "decoding_prob", std::ofstream::out);
+        ofsProb.precision(std::numeric_limits<double>::max_digits10);
         ofsProb << currentMax;
         ofsProb.close();
         if(verbose)

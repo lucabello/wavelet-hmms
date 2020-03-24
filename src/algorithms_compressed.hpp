@@ -46,6 +46,7 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool tofile){
         if(verbose)
             std::cout << "[>] Saving compressed evaluation log probability to file " << PATH_OUT << "compressed_evaluation_prob ... " << std::flush;
         std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob", std::ofstream::out);
+        ofs.precision(std::numeric_limits<double>::max_digits10);
         ofs << logEvaluation;
         ofs.close();
         if(verbose)
@@ -238,6 +239,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool tofile){
         if(verbose)
             std::cout << "[>] Saving compressed Viterbi log likelihood to file " << PATH_OUT << "compressed_decoding_prob ... " << std::flush;
         std::ofstream ofsProb (PATH_OUT + "compressed_decoding_prob", std::ofstream::out);
+        ofsProb.precision(std::numeric_limits<double>::max_digits10);
         ofsProb << currentMax;
         ofsProb.close();
         if(verbose)
@@ -405,7 +407,7 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
-    
+
     std::cout << "[>] +++ Compressed Training Problem +++" << std::endl;
 
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){

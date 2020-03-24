@@ -6,10 +6,15 @@ import utilities_io as uio
 import utilities_kmeans as ukm
 
 # OPTIONS
-sequence_length = 10000
+# Lenght of the observations sequence
+sequence_length = 1000000
+# Choose if kmeans should be performed or not
 perform_kmeans = True
+# Write the sequence to a binary file
 output_binary = True
+# Write the sequence1  in a human readable format
 output_readable = True
+# Also produce a file for the generating path (always human readable)
 output_path = True
 
 # read model from input file

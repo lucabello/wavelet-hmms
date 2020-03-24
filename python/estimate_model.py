@@ -5,4 +5,4 @@ import utilites_kmeans as ukm
 # OPTIONS
 n_states = 2
 
-estimate_model(k=n_states)
+ukm.estimate_model(k=n_states)

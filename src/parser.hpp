@@ -59,7 +59,11 @@ parse(int argc, char* argv[])
         ("binary", "Specify that files for observations and generating path"
             "are in binary format",
             cxxopts::value<bool>())
-        ("import", "Input file containing a saved model",
+        ("model", "Input file containing a saved model to use for evaluation "
+            "and decoding problems",
+            cxxopts::value<std::string>(), "<filename>")
+        ("estimate", "Input file containing a saved model to use for the "
+            "training problem",
             cxxopts::value<std::string>(), "<filename>")
         ("tofile", "Save results as files in the folder ./results/",
             cxxopts::value<bool>())

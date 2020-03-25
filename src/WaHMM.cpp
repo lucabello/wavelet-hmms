@@ -15,7 +15,7 @@ int main(int argc, const char* argv[]){
     //std::cout << std::scientific; // print numbers with scientific notation
     auto result = parse(argc, argv);
 
-    Model model;
+    Model model, estimate;
     std::vector<State> states;
     std::vector<wahmm::real_t> relTrans;
     std::vector<wahmm::real_t> relPi;
@@ -30,8 +30,8 @@ int main(int argc, const char* argv[]){
     FILE *finObs, *finPath;
 
     // parsing arguments from command line
-    if(result.count("import")){ // read the model from a file
-        fileModelIn = result["import"].as<std::string>();
+    if(result.count("model")){ // read the model from a file
+        fileModelIn = result["model"].as<std::string>();
         // Read the file with input observations
         std::ifstream modelFileInput(fileModelIn);
         if(modelFileInput.is_open()){
@@ -64,6 +64,19 @@ int main(int argc, const char* argv[]){
                 relPi.push_back((wahmm::real_t)d);
         }
         model = Model(states, relTrans, relPi);
+    }
+    if(result.count("estimate")){
+        fileModelIn = result["estimate"].as<std::string>();
+        // Read the file with input observations
+        std::ifstream modelFileInput(fileModelIn);
+        if(modelFileInput.is_open()){
+            modelFileInput >> estimate;
+        }
+        else {
+            std::cerr << "Cannot read file " + fileModelIn + " !" << std::endl;
+            return -1;
+        }
+        modelFileInput.close();
     }
     // if(result.count("output")){
     //     pathOut = result["output"].as<std::string>();
@@ -192,7 +205,7 @@ int main(int argc, const char* argv[]){
         if(decoding)
             decoding_problem(model, observations, verbose, tofile);
         if(training)
-            training_problem(model, observations, 1e-9, 100, verbose,
+            training_problem(estimate, observations, 1e-9, 100, verbose,
                 tofile);
     }
     else {
@@ -203,7 +216,7 @@ int main(int argc, const char* argv[]){
         if(decoding)
             decoding_compressed(model, compressor, verbose, tofile);
         if(training)
-            training_compressed(model, compressor, 1e-9, 100, verbose, tofile);
+            training_compressed(estimate, compressor, 1e-9, 100, verbose, tofile);
     }
 
 

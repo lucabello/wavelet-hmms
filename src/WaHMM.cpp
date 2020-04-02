@@ -25,7 +25,7 @@ int main(int argc, const char* argv[]){
     bool evaluation = false, decoding = false, training = false;
     bool binary = false, tofile = false;
     bool compressed = false;
-    bool verbose = false;
+    bool verbose = false, silence = false;
     Compressor *compressor;
     FILE *finObs, *finPath;
 
@@ -101,6 +101,8 @@ int main(int argc, const char* argv[]){
         compressed = true;
     if(result.count("verbose"))
         verbose = true;
+    if(result.count("silence"))
+        silence = true;
 
     // some input checks
     if(states.size() != relPi.size()){
@@ -113,6 +115,10 @@ int main(int argc, const char* argv[]){
     }
     if(fileObs.empty()){
         std::cerr << "[Error] Input file for observations not specified" << std::endl;
+        return -1;
+    }
+    if(silence == true && verbose == true){
+        std::cerr << "[Error] Silence and Verbose flags cannot be used together" << std::endl;
         return -1;
     }
     if(!compressed){
@@ -176,7 +182,8 @@ int main(int argc, const char* argv[]){
     }
     // // Read the file with input state path
     if(filePath.empty()){
-        std::cerr << "[Warning] Input file for generating path not specified" << std::endl;
+        if(verbose)
+            std::cerr << "[Warning] Input file for generating path not specified" << std::endl;
     }
         else {
         if(verbose)
@@ -195,28 +202,30 @@ int main(int argc, const char* argv[]){
             std::cout << "[>] ... done." << std::endl;
     }
 
-    model.printModel();
+    if(!silence)
+        model.printModel();
 
     if(!compressed){
         if(verbose)
             std::cout << "[>] Starting standard algorithms." << std::endl;
         if(evaluation)
-            evaluation_problem(model, observations, verbose, tofile);
+            evaluation_problem(model, observations, verbose, silence, tofile);
         if(decoding)
-            decoding_problem(model, observations, verbose, tofile);
+            decoding_problem(model, observations, verbose, silence, tofile);
         if(training)
             training_problem(estimate, observations, 1e-9, 100, verbose,
-                tofile);
+                silence, tofile);
     }
     else {
         if(verbose)
             std::cout << "[>] Starting compressed algorithms" << std::endl;
         if(evaluation)
-            evaluation_compressed(model, compressor, verbose, tofile);
+            evaluation_compressed(model, compressor, verbose, silence, tofile);
         if(decoding)
-            decoding_compressed(model, compressor, verbose, tofile);
+            decoding_compressed(model, compressor, verbose, silence, tofile);
         if(training)
-            training_compressed(estimate, compressor, 1e-9, 100, verbose, tofile);
+            training_compressed(estimate, compressor, 1e-9, 100, verbose,
+                silence, tofile);
     }
 
 

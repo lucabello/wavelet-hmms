@@ -77,6 +77,8 @@ parse(int argc, char* argv[])
             cxxopts::value<bool>())
         ("compressed", "Use the compressed version of the algorithms",
             cxxopts::value<bool>())
+        ("silence", "Suppress every message printed to screen",
+            cxxopts::value<bool>())
         ("v,verbose", "Print extensive algorithms information",
             cxxopts::value<bool>())
         ("h,help", "Print this help message",

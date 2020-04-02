@@ -5,12 +5,15 @@
 #include <list>
 using std::list;
 
-void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose);
+void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
+    bool silence, bool tofile);
 wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
 wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
-void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose);
-void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
-    size_t maxIterations, bool verbose);
+void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
+    bool silence, bool tofile);
+void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs,
+    wahmm::real_t thresh, size_t maxIterations, bool verbose, bool silence,
+    bool tofile);
 /**
 * Solve the evaluation problem through the forward algorithm.
 * If verbose is true, print the results.
@@ -20,12 +23,13 @@ void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs, wahmm::
 * @param verbose if true prints result informations
 */
 void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
-    bool tofile){
+    bool silence, bool tofile){
     wahmm::real_t **logForward;
     wahmm::real_t logEvaluation;
     size_t numberOfStates = m.mStates.size();
 
-    std::cout << "[>] +++ Evaluation Problem +++" << std::endl;
+    if(!silence)
+        std::cout << "[>] +++ Evaluation Problem +++" << std::endl;
 
     logForward = forward_matrix(m, obs); // initialization and induction
     // termination
@@ -40,7 +44,8 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
         printMatrixSummary(logForward, numberOfStates, obs.size(),
             "Forward (log)", false);
     }
-    std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
+    if(!silence)
+        std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
     if(tofile){
         if(verbose)
             std::cout << "[>] Saving evaluation log probability to file " << PATH_OUT << "evaluation_prob ... " << std::flush;
@@ -135,13 +140,14 @@ wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
 * @param verbose if true print result informations
 */
 void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
-    bool tofile){
+    bool silence, bool tofile){
     wahmm::real_t **logViterbi, **statesViterbi;
     size_t numberOfStates = m.mStates.size();
     logViterbi = new wahmm::real_t*[numberOfStates];
     statesViterbi = new wahmm::real_t*[numberOfStates];
 
-    std::cout << "[>] +++ Decoding Problem +++" << std::endl;
+    if(!silence)
+        std::cout << "[>] +++ Decoding Problem +++" << std::endl;
 
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
@@ -193,7 +199,8 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
         if(currentState >= 0)
             currentState = statesViterbi[currentState][t+1];
         else {
-            std::cerr << "[Warning] Impossible Viterbi path!" << std::endl;
+            if(!silence)
+                std::cerr << "[Warning] Impossible Viterbi path!" << std::endl;
             break;
         }
         viterbiPath.push_front(currentState);
@@ -204,18 +211,20 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
         printMatrixSummary(logViterbi, numberOfStates, obs.size(),
             "Viterbi (log)", false);
     }
-    std::cout << "[>] Most likely path: " << std::endl;
-    int i = 0;
-    for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
-        // only print first 5 and last 5 states
-        if(i == 5)
-            std::cout << "... ";
-        if(i >= 5 && i < viterbiPath.size() - 5)
-            continue;
-        std::cout << *it << " ";
+    if(!silence){
+        std::cout << "[>] Most likely path: " << std::endl;
+        int i = 0;
+        for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++, i++){
+            // only print first 5 and last 5 states
+            if(i == 5)
+                std::cout << "... ";
+            if(i >= 5 && i < viterbiPath.size() - 5)
+                continue;
+            std::cout << *it << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "[>] log[ P(Q|O,lambda) ]: " << currentMax << std::endl;
     }
-    std::cout << std::endl;
-    std::cout << "[>] log[ P(Q|O,lambda) ]: " << currentMax << std::endl;
 
     // print to file for comparison with other implementations
     if(tofile){
@@ -269,7 +278,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
 wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t minObs,
     wahmm::real_t **logEpsilon, wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
-    wahmm::real_t *logAverage, wahmm::real_t *logVariance, bool verbose){
+    wahmm::real_t *logAverage, wahmm::real_t *logVariance){
 
     wahmm::real_t logEvaluation; // P(O|lambda)
     wahmm::real_t **logForward; // forward matrix
@@ -364,7 +373,7 @@ wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wa
 * Baum-Welch algorithm.
 */
 void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
-    size_t maxIterations, bool verbose, bool tofile){
+    size_t maxIterations, bool verbose, bool silence, bool tofile){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
     wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
@@ -392,12 +401,12 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t t
     wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
     size_t iter;
-    if(verbose)
+    if(!silence)
         std::cout << "[>] +++ Training problem +++" << std::endl;
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
         newEvaluation = baum_welch_iteration(m, obs, minObs,
             logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
-            logGammaSum, logAverage, logVariance, verbose);
+            logGammaSum, logAverage, logVariance);
         // newEvaluation = training_problem_scaled(m, obs, minObs,
         //     logEpsilon, logPi, logGamma,
         //     logGammaSum, logAverage, logVariance);
@@ -410,9 +419,10 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t t
             m.printModel();
         }
     }
-
-    std::cout << "[>] Number of iterations: " << iter << std::endl;
-    m.printModel();
+    if(!silence){
+        std::cout << "[>] Number of iterations: " << iter << std::endl;
+        m.printModel();
+    }
 
     if(tofile){
         if(verbose)

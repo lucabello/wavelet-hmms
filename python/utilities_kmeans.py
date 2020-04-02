@@ -71,5 +71,26 @@ def estimate_model(k, use_binary_file=True):
     else:
         observations = uio.read_observations()
     centroids, std_devs, labels = kmeans(observations, k)
-    write_kmeans_model(centroids, std_devs)
-    write_kmeans_labels(labels)
+    # sort states by increasing mean
+    initial_order = []
+    new_order = []
+    for i in range(0, len(centroids)):
+        initial_order.append(i)
+        new_order.append(i)
+    for i in range(0, len(centroids)):
+        for j in range(1, len(centroids)-i):
+            if centroids[j-1] > centroids[j]:
+                tmp = new_order[j-1]
+                new_order[j-1] = new_order[j]
+                new_order[j] = tmp
+    sorted_centroids = []
+    sorted_devs = []
+    for i in range(0, len(centroids)):
+        sorted_centroids.append(centroids[new_order[i]])
+        sorted_devs.append(std_devs[new_order[i]])
+    sorted_labels = []
+    for i in range(0, len(labels)):
+        sorted_labels.append(new_order[labels[i]])
+
+    write_kmeans_model(sorted_centroids, sorted_devs)
+    write_kmeans_labels(sorted_labels)

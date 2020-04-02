@@ -7,7 +7,7 @@ import utilities_kmeans as ukm
 
 # OPTIONS
 # Lenght of the observations sequence
-sequence_length = 1000000
+sequence_length = 100000
 # Choose if kmeans should be performed or not
 perform_kmeans = True
 # Write the sequence to a binary file

@@ -4,12 +4,27 @@ import subprocess
 import sys
 import viterbi_comparison
 import utilities_io as uio
+from math import exp
+
+# helper functions
+# Relative change, https://en.wikipedia.org/wiki/Relative_change_and_difference
+def compute_error(real, measured):
+    if real == 0 and measured == 0:
+        return 0
+    # return abs(2 * (real - measured) / (abs(real) + abs(measured)))
+    denominator = 0.0
+    if abs(real) > abs(measured):
+        denominator = abs(real)
+    else:
+        denominator = abs(measured)
+    return abs(real - measured) / denominator
 
 # OPTIONS
 topology = "fully-connected" # not used yet
-n_states = 2
-eta = 1
-n_tests = 10
+states = [2, 3, 5, 7, 11, 13]
+etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+n_tests = 100
+sequence_length = 100000 # used ONLY to calculate relative errors in decoding
 verbose = True
 f_eval_prob = "results/evaluation_prob"
 f_compr_eval_prob = "results/compressed_evaluation_prob"
@@ -18,12 +33,14 @@ f_compr_decod_prob = "results/compressed_decoding_prob"
 f_train_mod = "results/training_model"
 f_compr_train_mod = "results/compressed_training_model"
 # output files
-f_eval_out = "results/tests_evaluation"
-f_decod_prob_out = "results/tests_decoding_prob"
-f_decod_path_std_out = "results/tests_decoding_std_path"
-f_decod_path_compr_out = "results/tests_decoding_compr_path"
-f_train_std_out = "results/tests_std_training"
-f_train_compr_out = "results/tests_compr_training"
+f_eval_out = "evaluation"
+f_decod_prob_out = "decoding_prob"
+f_decod_path_std_out = "decoding_std_path"
+f_decod_path_compr_out = "decoding_compr_path"
+f_train_std_out = "training_std"
+f_train_compr_out = "training_compr"
+f_train_model_std_out = "training_model_std"
+f_train_model_compr_out = "training_model_compr"
 # SCRIPTS PATHS
 f_generate_states = "python/generate_states.py"
 f_generate_model = "python/create_model_file.py"
@@ -41,6 +58,7 @@ wahmm_args.append("data/kmeans_model")
 wahmm_args.append("--obs")
 wahmm_args.append("data/bin_observations")
 wahmm_args.append("--binary")
+wahmm_args.append("--silence")
 wahmm_args.append("--tofile")
 eval_std_args = wahmm_args.copy()
 eval_std_args.append("--evaluation")
@@ -55,174 +73,222 @@ decod_compr_args.append("--compressed")
 train_compr_args = train_std_args.copy()
 train_compr_args.append("--compressed")
 
-
 if verbose:
-    print("[Test] Generating states... ",end="",flush=True)
-arguments = [f_generate_states, str(eta), str(n_states)]
-subprocess.call(arguments)
-if verbose:
-    print("done.",flush=True)
+    print("=== WaHMM AUTOMATED TESTING ===")
+    print("eta:",etas," #states:",states," #tests:",n_tests)
 
-if verbose:
-    print("[Test] Generating model... ",end="",flush=True)
-subprocess.call(f_generate_model)
-if verbose:
-    print("done.",flush=True)
+test_count = 1
+for eta in etas:
+    print("[Test] --- Using Eta:",eta,"---")
+    for n_states in states:
+        print("[Test] --- Model with",n_states,"states ---")
+        if verbose:
+            print("[Test] Generating states... ",end="",flush=True)
+        arguments = [f_generate_states, str(eta), str(n_states)]
+        subprocess.call(arguments)
+        if verbose:
+            print("done.",flush=True)
 
-evaluation_errors = []
-decoding_errors = []
-decoding_paths_std_errors = []
-decoding_paths_compr_errors = []
-ur_model_diff = []
-cr_model_diff = []
-for iteration in range(0, n_tests):
-    # Step 1: data generation
-    if verbose:
-        print("[Test",iteration,"] Generating data... ",end="",flush=True)
-    subprocess.call(f_generate_data)
-    if verbose:
-        print("done.",flush=True)
+        if verbose:
+            print("[Test] Generating model... ",end="",flush=True)
+        subprocess.call(f_generate_model)
+        if verbose:
+            print("done.",flush=True)
 
-    # Step 2: evaluation problem
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM uncompressed evaluation...")
-    subprocess.call(eval_std_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM uncompressed evaluation finished.")
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM compressed evaluation...")
-    subprocess.call(eval_compr_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM compressed evaluation finished.")
+        # TEST THE MODEL
+        evaluation_errors = []
+        decoding_errors = []
+        decoding_paths_std_errors = []
+        decoding_paths_compr_errors = []
+        ur_model_diff = []
+        cr_model_diff = []
+        u_model = []
+        c_model = []
+        for iteration in range(1, n_tests+1):
+            # Step 1: data generation
+            if verbose:
+                print("[Test",test_count,"] Generating data... ",end="",flush=True)
+            subprocess.call(f_generate_data)
+            if verbose:
+                print("done.",flush=True)
 
-    in_eval_file = open(f_eval_prob, "r")
-    evaluation_prob = float(in_eval_file.read())
-    in_eval_file.close()
-    in_eval_file = open(f_compr_eval_prob, "r")
-    compressed_evaluation_prob = float(in_eval_file.read())
-    in_eval_file.close()
-    if verbose:
-        print("[Test",iteration,"] Uncompressed evaluation probability:", evaluation_prob)
-        print("[Test",iteration,"] Compressed evaluation probability:", compressed_evaluation_prob)
-        print("[Test",iteration,"] Error:", evaluation_prob - compressed_evaluation_prob)
-    evaluation_errors.append(evaluation_prob - compressed_evaluation_prob)
+            # Step 2: evaluation problem
+            if verbose:
+                print("[Test",test_count,"] -- Running WaHMM uncompressed evaluation...")
+            subprocess.call(eval_std_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM uncompressed evaluation finished.")
+            if verbose:
+                print("[Test",test_count,"] Running WaHMM compressed evaluation...")
+            subprocess.call(eval_compr_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM compressed evaluation finished.")
 
-    # Step 3: decoding problem
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM uncompressed decoding...")
-    subprocess.call(decod_std_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM uncompressed decoding finished.")
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM compressed decoding...")
-    subprocess.call(decod_compr_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM compressed decoding finished.")
+            in_eval_file = open(f_eval_prob, "r")
+            evaluation_prob = float(in_eval_file.read())
+            in_eval_file.close()
+            in_eval_file = open(f_compr_eval_prob, "r")
+            compressed_evaluation_prob = float(in_eval_file.read())
+            in_eval_file.close()
+            eval_relative_error = compute_error(evaluation_prob, compressed_evaluation_prob)
+            if verbose:
+                print("[Test",test_count,"] Uncompressed evaluation probability:", evaluation_prob)
+                print("[Test",test_count,"] Compressed evaluation probability:", compressed_evaluation_prob)
+                print("[Test",test_count,"] RPD Error:", eval_relative_error)
+            evaluation_errors.append(eval_relative_error)
 
-    in_decod_file = open(f_decod_prob, "r")
-    decoding_prob = float(in_decod_file.read())
-    in_decod_file.close()
-    in_decod_file = open(f_compr_decod_prob, "r")
-    compressed_decoding_prob = float(in_decod_file.read())
-    in_decod_file.close()
-    if verbose:
-        print("[Test",iteration,"] Uncompressed decoding probability:", decoding_prob)
-        print("[Test",iteration,"] Compressed decoding probability:", compressed_decoding_prob)
-        print("[Test",iteration,"] Error:", decoding_prob - compressed_decoding_prob)
-    decoding_errors.append(decoding_prob - compressed_decoding_prob)
-    path_errors = viterbi_comparison.count_differences_uncompressed()
-    if verbose:
-        print("[Test",iteration,"] Errors in path for uncompressed:", path_errors)
-    decoding_paths_std_errors.append(path_errors)
-    path_errors = viterbi_comparison.count_differences_compressed()
-    if verbose:
-        print("[Test",iteration,"] Errors in path for compressed:", path_errors)
-    decoding_paths_compr_errors.append(path_errors)
+            # Step 3: decoding problem
+            if verbose:
+                print("[Test",test_count,"] -- Running WaHMM uncompressed decoding...")
+            subprocess.call(decod_std_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM uncompressed decoding finished.")
+            if verbose:
+                print("[Test",test_count,"] Running WaHMM compressed decoding...")
+            subprocess.call(decod_compr_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM compressed decoding finished.")
 
-    # Step 4: training problem
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM uncompressed training...")
-    subprocess.call(train_std_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM uncompressed training finished.")
-    if verbose:
-        print("[Test",iteration,"] Running WaHMM compressed training...")
-    subprocess.call(train_compr_args)
-    if verbose:
-        print("[Test",iteration,"] WaHMM compressed training finished.")
+            in_decod_file = open(f_decod_prob, "r")
+            decoding_prob = float(in_decod_file.read())
+            in_decod_file.close()
+            in_decod_file = open(f_compr_decod_prob, "r")
+            compressed_decoding_prob = float(in_decod_file.read())
+            in_decod_file.close()
+            decod_relative_error = compute_error(decoding_prob, compressed_decoding_prob)
+            if verbose:
+                print("[Test",test_count,"] Uncompressed decoding probability:", decoding_prob)
+                print("[Test",test_count,"] Compressed decoding probability:", compressed_decoding_prob)
+                print("[Test",test_count,"] RPD Error:", decod_relative_error)
+            decoding_errors.append(decod_relative_error)
+            path_errors = viterbi_comparison.count_differences_uncompressed()/sequence_length
+            if verbose:
+                print("[Test",test_count,"] Fraction of errors in path for uncompressed:", path_errors)
+            decoding_paths_std_errors.append(path_errors)
+            path_errors = viterbi_comparison.count_differences_compressed()/sequence_length
+            if verbose:
+                print("[Test",test_count,"] Fraction of errors in path for compressed:", path_errors)
+            decoding_paths_compr_errors.append(path_errors)
 
-    # r stands for "real", u for "uncompressed" and c for "compressed"
-    r_nstates, r_means, r_stddevs, r_trans, r_init = uio.read_model()
-    u_nstates, u_means, u_stddevs, u_trans, u_init = uio.read_model(f_train_mod)
-    c_nstates, c_means, c_stddevs, c_trans, c_init = uio.read_model(f_compr_train_mod)
+            # Step 4: training problem
+            if verbose:
+                print("[Test",test_count,"] -- Running WaHMM uncompressed training...")
+            subprocess.call(train_std_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM uncompressed training finished.")
+            if verbose:
+                print("[Test",test_count,"] Running WaHMM compressed training...")
+            subprocess.call(train_compr_args)
+            if verbose:
+                print("[Test",test_count,"] WaHMM compressed training finished.")
 
-    ur_diff = []
-    cr_diff = []
-    # number of states, just to remember that
-    ur_diff.append(r_nstates)
-    cr_diff.append(r_nstates)
-    # states
-    for i in range(0, r_nstates):
-        ur_diff.append(u_means[i] - r_means[i])
-        ur_diff.append(u_stddevs[i] - r_stddevs[i])
-        cr_diff.append(c_means[i] - r_means[i])
-        cr_diff.append(c_stddevs[i] - r_stddevs[i])
-    # transitions
-    for i in range(0, r_nstates):
-        for j in range(0, r_nstates):
-            ur_diff.append(u_trans[i*r_nstates+j] - r_trans[i*r_nstates+j])
-            cr_diff.append(c_trans[i*r_nstates+j] - r_trans[i*r_nstates+j])
-    # initial distributions
-    for i in range(0, r_nstates):
-        ur_diff.append(u_init[i] - r_init[i])
-        cr_diff.append(c_init[i] - r_init[i])
+            # r stands for "real", u for "uncompressed" and c for "compressed"
+            r_nstates, r_means, r_stddevs, r_trans, r_init = uio.read_model()
+            u_nstates, u_means, u_stddevs, u_trans, u_init = uio.read_model(f_train_mod)
+            c_nstates, c_means, c_stddevs, c_trans, c_init = uio.read_model(f_compr_train_mod)
 
-    ur_model_diff.append(ur_diff)
-    cr_model_diff.append(cr_diff)
+            ur_diff = []
+            cr_diff = []
+
+            # Save differences
+            # number of states, just to remember that
+            ur_diff.append(r_nstates)
+            cr_diff.append(r_nstates)
+            # states
+            for i in range(0, r_nstates):
+                ur_diff.append(compute_error(r_means[i], u_means[i]))
+                ur_diff.append(compute_error(r_stddevs[i], u_stddevs[i]))
+                cr_diff.append(compute_error(r_means[i], c_means[i]))
+                cr_diff.append(compute_error(r_stddevs[i], c_stddevs[i]))
+            # transitions
+            for i in range(0, r_nstates):
+                for j in range(0, r_nstates):
+                    ur_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(u_trans[i*r_nstates+j])))
+                    cr_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(c_trans[i*r_nstates+j])))
+            # initial distributions
+            for i in range(0, r_nstates):
+                ur_diff.append(compute_error(exp(r_init[i]), exp(u_init[i])))
+                cr_diff.append(compute_error(exp(r_init[i]), exp(c_init[i])))
+
+            ur_model_diff.append(ur_diff)
+            cr_model_diff.append(cr_diff)
+
+            # Save actual models
+            # u_model_file = open(f_train_mod, "r")
+            # u_model_list = u_model_file.read().split()
+            # u_model.append(u_model_list)
+            # u_model_file.close()
+            # c_model_file = open(f_compr_train_mod, "r")
+            # c_model_list = c_model_file.read().split()
+            # c_model.append(c_model_list)
+            # c_model_file.close()
+
+            test_count = test_count + 1
 
 
-# Save testing results to file
-out_file = open(f_eval_out, "w")
-for i in range(0, n_tests):
-    out_file.write(str(evaluation_errors[i]) + " ")
-out_file.close()
-out_file = open(f_decod_prob_out, "w")
-for i in range(0, n_tests):
-    out_file.write(str(decoding_errors[i]) + " ")
-out_file.close()
-out_file = open(f_decod_path_std_out, "w")
-for i in range(0, n_tests):
-    out_file.write(str(decoding_paths_std_errors[i]) + " ")
-out_file.close()
-out_file = open(f_decod_path_compr_out, "w")
-for i in range(0, n_tests):
-    out_file.write(str(decoding_paths_compr_errors[i]) + " ")
-out_file.close()
-out_file = open(f_train_std_out, "w")
-for i in range(0, n_tests):
-    for x in range(0, len(ur_model_diff[i])):
-        out_file.write(str(ur_model_diff[i][x]) + " ")
-    out_file.write("\n")
-out_file.close()
-out_file = open(f_train_compr_out, "w")
-for i in range(0, n_tests):
-    for x in range(0, len(cr_model_diff[i])):
-        out_file.write(str(cr_model_diff[i][x]) + " ")
-    out_file.write("\n")
-out_file.close()
+        # Save testing results to file
+        prefix = "tests/FC_" + str(n_states) + "_" + str(eta) + "_"
+        print("[Test] Saving files with prefix:",prefix)
+        # Evaluation
+        out_file = open(prefix+f_eval_out, "w")
+        for i in range(0, n_tests):
+            out_file.write(str(evaluation_errors[i]) + " ")
+        out_file.close()
+        # Decoding
+        out_file = open(prefix+f_decod_prob_out, "w")
+        for i in range(0, n_tests):
+            out_file.write(str(decoding_errors[i]) + " ")
+        out_file.close()
+        out_file = open(prefix+f_decod_path_std_out, "w")
+        for i in range(0, n_tests):
+            out_file.write(str(decoding_paths_std_errors[i]) + " ")
+        out_file.close()
+        out_file = open(prefix+f_decod_path_compr_out, "w")
+        for i in range(0, n_tests):
+            out_file.write(str(decoding_paths_compr_errors[i]) + " ")
+        out_file.close()
+        # Training
+        out_file = open(prefix+f_train_std_out, "w")
+        for i in range(0, n_tests):
+            for x in range(0, len(ur_model_diff[i])):
+                out_file.write(str(ur_model_diff[i][x]) + " ")
+            out_file.write("\n")
+        out_file.close()
+        out_file = open(prefix+f_train_compr_out, "w")
+        for i in range(0, n_tests):
+            for x in range(0, len(cr_model_diff[i])):
+                out_file.write(str(cr_model_diff[i][x]) + " ")
+            out_file.write("\n")
+        out_file.close()
 
+        # out_file = open(prefix+f_train_model_std_out, "w")
+        # for i in range(0, n_tests):
+        #     for x in range(0, len(u_model[i])):
+        #         out_file.write(str(u_model[i][x]) + " ")
+        #     out_file.write("\n")
+        # out_file.close()
+        # out_file = open(prefix+f_train_model_compr_out, "w")
+        # for i in range(0, n_tests):
+        #     for x in range(0, len(c_model[i])):
+        #         out_file.write(str(c_model[i][x]) + " ")
+        #     out_file.write("\n")
+        # out_file.close()
+
+
+print("\n[Test] -- Testing is finished.")
 # Print results
-print("\n=== TESTING RESULTS ===")
-print("= Evaluation Errors =")
-print(evaluation_errors)
-print("= Decoding Errors Prob =")
-print(decoding_errors)
-print("= Decoding Errors Path Std =")
-print(decoding_paths_std_errors)
-print("= Decoding Errors path Compressed =")
-print(decoding_paths_compr_errors)
-print("= Std Training Errors from real model =")
-print(ur_model_diff)
-print("= Compressed Training Errors from real model =")
-print(cr_model_diff)
+# ATTENTION: THESE RESULTS ARE CURRENTLY RELATED TO THE LAST TEST ONLY
+# print("\n=== TESTING RESULTS ===")
+# print("= Evaluation Errors =")
+# print(evaluation_errors)
+# print("= Decoding Errors Prob =")
+# print(decoding_errors)
+# print("= Decoding Errors Path Std =")
+# print(decoding_paths_std_errors)
+# print("= Decoding Errors Path Compressed =")
+# print(decoding_paths_compr_errors)
+# print("= Std Training Errors from real model =")
+# print(ur_model_diff)
+# print("= Compressed Training Errors from real model =")
+# print(cr_model_diff)
 print()

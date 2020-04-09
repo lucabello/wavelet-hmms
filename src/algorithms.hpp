@@ -5,61 +5,6 @@
 #include <list>
 using std::list;
 
-void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
-    bool silence, bool tofile);
-wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
-wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs);
-void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
-    bool silence, bool tofile);
-void training_problem_wrapper(Model& m, std::vector<wahmm::real_t>& obs,
-    wahmm::real_t thresh, size_t maxIterations, bool verbose, bool silence,
-    bool tofile);
-/**
-* Solve the evaluation problem through the forward algorithm.
-* If verbose is true, print the results.
-*
-* @param m the model
-* @param obs the observation sequence
-* @param verbose if true prints result informations
-*/
-void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
-    bool silence, bool tofile){
-    wahmm::real_t **logForward;
-    wahmm::real_t logEvaluation;
-    size_t numberOfStates = m.mStates.size();
-
-    if(!silence)
-        std::cout << "[>] +++ Evaluation Problem +++" << std::endl;
-
-    logForward = forward_matrix(m, obs); // initialization and induction
-    // termination
-    logEvaluation = -infin;
-    for(size_t i = 0; i < numberOfStates; i++){
-        logEvaluation = sum_logarithms(logEvaluation,
-            logForward[i][obs.size()-1]);
-    }
-
-    // print results
-    if(verbose){
-        printMatrixSummary(logForward, numberOfStates, obs.size(),
-            "Forward (log)", false);
-    }
-    if(!silence)
-        std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
-    if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving evaluation log probability to file " << PATH_OUT << "evaluation_prob ... " << std::flush;
-        std::ofstream ofs (PATH_OUT + "evaluation_prob", std::ofstream::out);
-        ofs.precision(std::numeric_limits<double>::max_digits10);
-        ofs << logEvaluation;
-        ofs.close();
-        if(verbose)
-            std::cout << "done." << std::endl;
-    }
-
-    freeMatrix(logForward, numberOfStates);
-}
-
 /**
 * Compute the forward matrix given a model and an observations sequence.
 *
@@ -104,7 +49,7 @@ wahmm::real_t** forward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
 wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
     wahmm::real_t **logBackward;
     size_t numberOfStates = m.mStates.size();
-    logBackward = new wahmm::real_t*[numberOfStates]; // forward variables
+    logBackward = new wahmm::real_t*[numberOfStates]; // backward variables
 
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
@@ -129,15 +74,61 @@ wahmm::real_t** backward_matrix(Model& m, std::vector<wahmm::real_t>& obs){
     return logBackward;
 }
 
-
 /**
-* Solve the decoding problem through the forward algorithm.
-* Currently write the obtained path in results/wahmm_viterbi.
-* If verbose is true print the Viterbi matrix.
+* Solve the evaluation problem through the forward algorithm.
 *
 * @param m the model
 * @param obs the observation sequence
 * @param verbose if true print result informations
+* @param silence suppress all output
+* @param tofile save results to file
+*/
+void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
+    bool silence, bool tofile){
+    wahmm::real_t **logForward;
+    wahmm::real_t logEvaluation;
+    size_t numberOfStates = m.mStates.size();
+
+    if(!silence)
+        std::cout << "[>] +++ Evaluation Problem +++" << std::endl;
+
+    logForward = forward_matrix(m, obs); // initialization and induction
+    // termination
+    logEvaluation = -infin;
+    for(size_t i = 0; i < numberOfStates; i++){
+        logEvaluation = sum_logarithms(logEvaluation,
+            logForward[i][obs.size()-1]);
+    }
+
+    // print results
+    if(verbose){
+        printMatrixSummary(logForward, numberOfStates, obs.size(),
+            "Forward (log)", false);
+    }
+    if(!silence)
+        std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
+    if(tofile){
+        if(verbose)
+            std::cout << "[>] Saving evaluation log probability to file " << PATH_OUT << "evaluation_prob ... " << std::flush;
+        std::ofstream ofs (PATH_OUT + "evaluation_prob", std::ofstream::out);
+        ofs.precision(std::numeric_limits<double>::max_digits10);
+        ofs << logEvaluation;
+        ofs.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
+    }
+
+    freeMatrix(logForward, numberOfStates);
+}
+
+/**
+* Solve the decoding problem making use of the forward algorithm.
+*
+* @param m the model
+* @param obs the observation sequence
+* @param verbose if true print result informations
+* @param silence suppress all output
+* @param tofile save results to file
 */
 void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
     bool silence, bool tofile){
@@ -195,7 +186,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
     }
     viterbiPath.push_front(currentState);
     for(int t = obs.size()-2; t >= 0; t--){
-        // if currentState == -1, impossible path? can it happen?
+        // if currentState == -1, impossible path
         if(currentState >= 0)
             currentState = statesViterbi[currentState][t+1];
         else {
@@ -226,7 +217,6 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
         std::cout << "[>] log[ P(Q|O,lambda) ]: " << currentMax << std::endl;
     }
 
-    // print to file for comparison with other implementations
     if(tofile){
         if(verbose)
             std::cout << "[>] Saving Viterbi path to file " << PATH_OUT << "decoding_path ... " << std::flush;
@@ -251,8 +241,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
 }
 
 /**
-* Solve the training problem performing one iteration of the Baum-Welch
-* algorithm.
+* Perform one iteration of the Baum-Welch algorithm.
 * The forward matrix is calculated entirely; the other things are not to save
 * space; the backward variable is computed only for the current time; for the
 * reestimation parameters, accumulate sufficient statistics at each time step.
@@ -263,17 +252,15 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
 * so it's simplified and not included at all.
 * For the backward variable, two arrays are needed, for beta_t and beta_{t+1}.
 * For this reason, use two arrays and swap them at each time step.
+*
+* Also, the reestimation of the average requires calculating log(obs[t]);
+* to avoid negative observations, translate the sequence (only when performing
+* that computation) so the minimum obsevation is zero.
+* Actually, translate so that the sequence ranges from [1, inf) because
+* zero could be represented as -0.0000000000001 and it would make the log
+* function crash.viterbi_likelihood
 
-// the reestimation of the average requires calculating log(obs[t]);
-// to avoid negative observations, translate the sequence (only when
-// performing that computation) so the minimum obsevation is zero.
-//
-// Actually, translate so that the sequence ranges from [1, inf) because
-// zero could be represented as -0.0000000000001 and it would make the log
-// function crash.viterbi_likelihood
-
-@returns the logEvaluation P(O|lambda) of the previous model
-
+* @returns the logEvaluation P(O|lambda) of the previous model
 */
 wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t minObs,
     wahmm::real_t **logEpsilon, wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
@@ -369,8 +356,11 @@ wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wa
 }
 
 /**
-* Wrapper for the training problem, to perform more iterations of the
-* Baum-Welch algorithm.
+* Solve the training problem by performing more iterations of the Baum-Welch
+* algorithm. The training continues for a certain number of iterations at
+* maximum or until the improvement on the evaluation probability falls below
+* a certain threshold.
+* Note that one more iteration than necessary is performed.
 */
 void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
     size_t maxIterations, bool verbose, bool silence, bool tofile){

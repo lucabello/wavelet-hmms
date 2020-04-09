@@ -4,12 +4,8 @@
 #include "includes.hpp"
 #include "Tags.hpp"
 #include "HMM.hpp"
-//#include "Emissions.hpp"
 #include "Blocks.hpp"
-//#include "AutoPriors.hpp"
-//#include "Records.hpp"
 #include "wavelet.hpp"
-//#include "StateSequence.hpp"
 #include "Statistics.hpp"
 #include "utils.hpp"
 #include "commons.hpp"
@@ -23,6 +19,12 @@ void MaxletTransform(FILE* fin,
     const size_t reserveT = 0 // an estimate of the number of data points to avoid reallocation
 );
 
+/**
+* Class constituting the interface between WaHMM and HaMMLET. It serves the
+* purpose of reading the observations and compressing them into blocks,
+* also providing an interace to navigate easily the data structures that
+* HaMMLET offers.
+*/
 class Compressor {
     /** Input observations values */
     vector<real_t> mInputValues;
@@ -274,11 +276,10 @@ void Compressor::printAllBlocks(){
     initForward();
 }
 
-
-
-
-
-// Computes the maxlet transform (absolute Haar wavelet transform  for each dimension, then maximum of corresponding values across dimensions) from streaming input (dimensions first, then position), using only space T for coefficients and nrDim*T for statistics, plus nrDim*log2(T) for a stack. Output: coeffs.size()=T, suffstats.size() = nrDim*T
+/*
+* Overloads the original function in HaMMLET to use C-style file input
+* for efficiency reasons
+*/
 template< typename T>
 void MaxletTransform(
     FILE* fin,

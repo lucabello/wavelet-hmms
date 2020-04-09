@@ -7,77 +7,29 @@
 #include <list>
 using std::list;
 
-wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c);
-wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c);
-
 /**
-* Solve the evaluation problem through the forward algorithm.
-* If verbose is true, print the results.
+* Compute the compressed forward matrix given a model and a Compressor holding
+* the compressed data. Each element approximates the value at the end of the
+* block of the uncompressed matrix.
 *
 * @param m the model
-* @param c compressor holding the HaMMLET interface
-* @param verbose if true prints result informations
+* @param c the compressor holding the data
 */
-void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool silence,
-    bool tofile){
-    wahmm::real_t **logForward;
-    wahmm::real_t logEvaluation;
-    size_t numberOfStates = m.mStates.size();
-
-    if(!silence)
-        std::cout << "[>] +++ Compressed Evaluation Problem +++" << std::endl;
-
-    logForward = forward_matrix_compressed(m, c); // initialization and induction
-    // std::cout << "Starting termination..." << std::endl;
-    // termination
-    logEvaluation = -infin;
-    for(size_t i = 0; i < numberOfStates; i++){
-        logEvaluation = sum_logarithms(logEvaluation,
-            logForward[i][c->blocksNumber()-1]);
-    }
-    // std::cout << "Termination done." << std::endl;
-
-    // print results
-    if(verbose){
-        printMatrixSummary(logForward, numberOfStates, c->blocksNumber(),
-            "Blocks Forward (log)", false);
-    }
-    if(!silence)
-        std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
-    if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving compressed evaluation log probability to file " << PATH_OUT << "compressed_evaluation_prob ... " << std::flush;
-        std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob", std::ofstream::out);
-        ofs.precision(std::numeric_limits<double>::max_digits10);
-        ofs << logEvaluation;
-        ofs.close();
-        if(verbose)
-            std::cout << "done." << std::endl;
-    }
-
-    freeMatrix(logForward, numberOfStates);
-}
-
-
 wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
     wahmm::real_t **logForward;
     size_t numberOfStates = m.mStates.size();
     logForward = new wahmm::real_t*[numberOfStates]; // forward variables
 
-    // std::cout << "Initiating FMC..." << std::endl;
     c->initForward();
     // initialization
     for(size_t i = 0; i < numberOfStates; i++){
-        // two elements (start, end) per block
         logForward[i] = new wahmm::real_t[c->blocksNumber()];
         // alpha_0(i) = pi_i * E_1(i)
         logForward[i][0] = m.mLogPi[i] + compute_e(m, i, c->blockData());
     }
-    // std::cout << "Initialization done. Starting induction..." << std::endl;
     // induction
     size_t blockCounter = 1;
     while(c->next()){
-        // std::cout << "Iteration with blockCounter=" << blockCounter << std::endl;
         for(size_t j = 0; j < numberOfStates; j++){ // arriving state
             logForward[j][blockCounter] = -infin;
             for(int i = 0; i < numberOfStates; i++){ // starting state
@@ -90,19 +42,23 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
         }
         blockCounter++;
     }
-    // std::cout << "Induction done." << std::endl;
     c->initForward();
 
-    // std::cout << "Exiting FMC..." << std::endl;
     return logForward;
 }
 
-
+/**
+* Compute the compressed backward matrix given a model and a Compressor holding
+* the compressed data. Each element approximates the value at the end of the
+* block of the uncompressed matrix.
+*
+* @param m the model
+* @param c the compressor holding the data
+*/
 wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     wahmm::real_t **logBackward;
     size_t numberOfStates = m.mStates.size();
-    logBackward = new wahmm::real_t*[numberOfStates]; // forward variables
-
+    logBackward = new wahmm::real_t*[numberOfStates]; // backward variables
 
     c->initBackward();
     int blockCounter = c->blocksNumber() - 1;
@@ -132,8 +88,64 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
     return logBackward;
 }
 
+/**
+* Solve the evaluation problem through a compressed version of the forward
+* algorithm.
+*
+* @param m the model
+* @param c compressor holding the data
+* @param verbose if true print result informations
+* @param silence suppress all output
+* @param tofile save results to file
+*/
+void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool silence,
+    bool tofile){
+    wahmm::real_t **logForward;
+    wahmm::real_t logEvaluation;
+    size_t numberOfStates = m.mStates.size();
 
+    if(!silence)
+        std::cout << "[>] +++ Compressed Evaluation Problem +++" << std::endl;
 
+    logForward = forward_matrix_compressed(m, c); // initialization and induction
+    // termination
+    logEvaluation = -infin;
+    for(size_t i = 0; i < numberOfStates; i++){
+        logEvaluation = sum_logarithms(logEvaluation,
+            logForward[i][c->blocksNumber()-1]);
+    }
+
+    // print results
+    if(verbose){
+        printMatrixSummary(logForward, numberOfStates, c->blocksNumber(),
+            "Blocks Forward (log)", false);
+    }
+    if(!silence)
+        std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
+    if(tofile){
+        if(verbose)
+            std::cout << "[>] Saving compressed evaluation log probability to file " << PATH_OUT << "compressed_evaluation_prob ... " << std::flush;
+        std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob", std::ofstream::out);
+        ofs.precision(std::numeric_limits<double>::max_digits10);
+        ofs << logEvaluation;
+        ofs.close();
+        if(verbose)
+            std::cout << "done." << std::endl;
+    }
+
+    freeMatrix(logForward, numberOfStates);
+}
+
+/**
+* Solve the decoding problem making use of the compressed version of the
+* forward algorithm.
+*
+* @param m the model
+* @param obs the observation sequence
+* @param verbose if true print result informations
+* @param silence suppress all output
+* @param tofile save results to file
+*/
 void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     bool tofile){
     wahmm::real_t **logViterbi, **statesViterbi;
@@ -150,7 +162,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     for(size_t i = 0; i < numberOfStates; i++){
         logViterbi[i] = new wahmm::real_t[c->blocksNumber()];
         statesViterbi[i] = new wahmm::real_t[c->blocksNumber()];
-        // delta_0(i) = pi_i * b_i(O_1)
+        // delta_0(i) = pi_i * e^(E_0(i))
         logViterbi[i][0] = m.mLogPi[i] + compute_e(m, i, c->blockData());
         statesViterbi[i][0] = -1; // psi_0(i) = 0
     }
@@ -171,7 +183,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
                     currentState = i;
                 }
             }
-            // ... b_{j}(O_{t})
+            // ... e^(E_w(j))
             logViterbi[j][blockCounter] = currentMax + compute_e(m, j, c->blockData());
             // psi_t(j) = argmax[...]
             statesViterbi[j][blockCounter] = currentState;
@@ -197,7 +209,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     }
     viterbiPath.push_front(currentState);
     for(; blockCounter > 0; blockCounter--){
-        // if currentState == -1, impossible path? can it happen?
+        // if currentState == -1, impossible path
         if(currentState >= 0)
             currentState = statesViterbi[currentState][blockCounter];
         else {
@@ -228,7 +240,6 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
         std::cout << "[>] log[ P(Q|O,lambda) ]: " << currentMax << std::endl;
     }
 
-    // print to file for comparison with other implementations
     if(tofile){
         if(verbose)
             std::cout << "[>] Saving compressed Viterbi path to file " << PATH_OUT << "compressed_decoding_path ..." << std::flush;
@@ -260,9 +271,18 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     freeMatrix(statesViterbi, numberOfStates);
 }
 
-
-
-
+/**
+* Perform one iteration of a compressed version of the Baum-Welch algorithm.
+* Both the forward and backward matrix are computed to achieve this.
+* The values for K(n_w, j) could be precomputed; to avoid useless computations,
+* whenever a new value of n_w is encountered, K(n_w, j) is computed for every
+* state and put into a map for greater efficiency.
+*
+* Parameters reestimation happens by progressively transforming the numbers
+* back into the normal space.
+*
+* @returns the logEvaluation P(O|lambda) of the previous model
+*/
 wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::real_t minSum,
     wahmm::real_t **logEpsilon,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
@@ -272,7 +292,6 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
     wahmm::real_t logEvaluation; // P(O|lambda)
     wahmm::real_t **logForward; // forward matrix
     wahmm::real_t **logBackward; // backward matrix
-    wahmm::real_t *tmp; // for swapping of the backward arrays
     size_t numberOfStates = m.mStates.size();
 
     // initialization
@@ -372,6 +391,8 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
         m.mStates[i].updateParameters(logAverage[i],
             sqrt(logVariance[i]));
     }
+    //drop KValues matrix
+    m.mKValues.clear();
 
     freeMatrix(logForward, numberOfStates);
     freeMatrix(logBackward, numberOfStates);
@@ -379,8 +400,13 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
     return logEvaluation;
 }
 
-
-
+/**
+* Solve the training problem by performing more iterations of a compressed
+* version of the Baum-Welch algorithm.
+* The training continues for a certain number of iterations at maximum or until
+* the improvement on the evaluation probability falls below a certain threshold.
+* Note that one more iteration than necessary is performed.
+*/
 void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     size_t maxIterations, bool verbose, bool silence, bool tofile){
 

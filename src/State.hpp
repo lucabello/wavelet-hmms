@@ -5,7 +5,7 @@
 
 /**
 * This class represents the State of a hidden Markov model; it is characterized
-* by a continuous Normal emission probability distribution function.
+* by a continuous Gaussian emission probability distribution function.
 */
 class State {
     static size_t idCounter;
@@ -17,7 +17,8 @@ class State {
     wahmm::real_t mMean;
     /** Standard deviation of the Gaussian associated to the state */
     wahmm::real_t mStdDev;
-    wahmm::real_t mLogStdDev; // precomputed for efficiency reasons
+    /** Standard deviation logarithm precomputed for efficiency reasons */
+    wahmm::real_t mLogStdDev;
 public:
     /** Constructor with default name */
     State(wahmm::real_t mean, wahmm::real_t stdDev);
@@ -28,8 +29,9 @@ public:
     wahmm::real_t mean();
     wahmm::real_t stdDev();
     wahmm::real_t logStdDev();
-    /** The log probability of sampling x from the distribution */
+    /** Return the log probability of sampling x from the state distribution */
     wahmm::real_t logPdf(wahmm::real_t x);
+    /** Update the parameters of the distribution associated to the state */
     void updateParameters(wahmm::real_t mean, wahmm::real_t stdDev);
 };
 

@@ -20,8 +20,7 @@ int main(int argc, const char* argv[]){
     std::vector<wahmm::real_t> relTrans;
     std::vector<wahmm::real_t> relPi;
     std::vector<wahmm::real_t> observations;
-    std::vector<wahmm::real_t> statePath;
-    std::string fileObs, filePath, fileModelIn, pathOut;
+    std::string fileObs, fileModelIn, pathOut;
     bool evaluation = false, decoding = false, training = false;
     bool binary = false, tofile = false;
     bool compressed = false;
@@ -78,14 +77,8 @@ int main(int argc, const char* argv[]){
         }
         modelFileInput.close();
     }
-    // if(result.count("output")){
-    //     pathOut = result["output"].as<std::string>();
-    // }
     if(result.count("obs")){
         fileObs = result["obs"].as<std::string>();
-    }
-    if(result.count("path")){
-        filePath = result["path"].as<std::string>();
     }
     if(result.count("binary"))
         binary = true;
@@ -121,6 +114,7 @@ int main(int argc, const char* argv[]){
         std::cerr << "[Error] Silence and Verbose flags cannot be used together" << std::endl;
         return -1;
     }
+    // read observations
     if(!compressed){
         if(!binary){
             if(verbose)
@@ -157,21 +151,6 @@ int main(int argc, const char* argv[]){
             if(verbose)
                 std::cout << "[>] ... done." << std::endl;
         }
-        // // not efficient file reading in C++ style
-        // // Read the file with input observations
-        // std::ifstream obsFileInput(fileObs);
-        // if(obsFileInput.is_open()){
-        //     wahmm::real_t number;
-        //     while(obsFileInput >> number){
-        //         observations.push_back(number);
-        //     }
-        // } else {
-        //     std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
-        //     return -1;
-        // }
-        // obsFileInput.close();
-
-        // std::cout << "Read " << observations.size() << " observations from file." << std::endl;
     }
     else {
         if(verbose)
@@ -180,31 +159,12 @@ int main(int argc, const char* argv[]){
         if(verbose)
             std::cout << "[>] ... done." << std::endl;
     }
-    // // Read the file with input state path
-    if(filePath.empty()){
-        if(verbose)
-            std::cerr << "[Warning] Input file for generating path not specified" << std::endl;
-    }
-        else {
-        if(verbose)
-            std::cout << "[>] Reading generating path... " << std::endl;
-        wahmm::real_t number;
-        finPath = fopen(filePath.c_str(), "r");
-        if(finPath != NULL){
-            while(fscanf(finPath, "%lf", &number) != EOF)
-                statePath.push_back(number);
-        } else {
-            std::cerr << "Cannot read file " + filePath + " !" << std::endl;
-            return -1;
-        }
-        fclose(finPath);
-        if(verbose)
-            std::cout << "[>] ... done." << std::endl;
-    }
 
+    // print acquired model
     if(!silence)
         model.printModel();
 
+    // execute the actual algorithms
     if(!compressed){
         if(verbose)
             std::cout << "[>] Starting standard algorithms." << std::endl;
@@ -227,7 +187,6 @@ int main(int argc, const char* argv[]){
             training_compressed(estimate, compressor, 1e-9, 100, verbose,
                 silence, tofile);
     }
-
 
     return 0;
 }

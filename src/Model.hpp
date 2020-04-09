@@ -5,23 +5,27 @@
 #include "commons.hpp"
 
 /*
-This class should represent a Hidden Markov Model for the specific scope
-and context of the thesis (Normal states, continuous observations, etc).
-Another bigger class will include both this and the Compressor, so that it can
-solve problem 3 without the Model (even returning a new Model) and it can ask
-for the Model to solve problem 1 and 2. It would be also able ot use the
-solution of problem 3 to generate a Model on which apply problem 1 and 2.
+This class represents a hidden Markov model for the specific scope
+and context of the thesis (Gaussian states, continuous observations, etc).
+The member variables are all public for efficiency reasons.
 */
 class Model {
 public:
+    /** Collection of the states of the model */
     std::vector<State> mStates;
+    /** Matrix of log probabilities of transitions between states */
     wahmm::real_t **mLogTransitions;
+    /** Logarithm of the initial state probability distribution */
     std::vector<wahmm::real_t> mLogPi;
+    /** Each entry is < n_w , K(n_w,j) for each state > */
+    std::map<size_t, std::vector<wahmm::real_t>> mKValues;
     Model();
     Model(const Model& that) = delete;
     Model(std::vector<State>& states, std::vector<wahmm::real_t>&relativeTr,
         std::vector<wahmm::real_t>& relativePi);
+    /** Print the model in a readable format, with classic probabilities */
     void printModel();
+    // Useful operators for model input/output
     friend ostream& operator<<(ostream& os, const Model& m);
     friend istream& operator>>(istream& is, Model& m);
 };

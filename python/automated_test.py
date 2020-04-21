@@ -4,26 +4,28 @@ import subprocess
 import sys
 import viterbi_comparison
 import utilities_io as uio
-from math import exp
+from math import exp, log
+import numpy as np
 
 # helper functions
 # Relative change, https://en.wikipedia.org/wiki/Relative_change_and_difference
 def compute_error(real, measured):
-    if real == 0 and measured == 0:
-        return 0
-    # return abs(2 * (real - measured) / (abs(real) + abs(measured)))
-    denominator = 0.0
-    if abs(real) > abs(measured):
-        denominator = abs(real)
-    else:
-        denominator = abs(measured)
-    return abs(real - measured) / denominator
+    # if real is 0 something is wrong, so crash
+    return abs((real - measured) / real)
+
+# compute KL divergence between two univariate gaussians with means m and
+# standard deviation s
+# = log(s1/s0) + (s0^2 + (m0-m1)^2)/(2*s1^2) - 1/2
+def kl_divergence_gaussians(m0, s0, m1, s1):
+    a = log(s1/s0)
+    b = (s0**2 + (m0-m1)**2)/(2*(s1**2))
+    return a + b - 0.5
 
 # OPTIONS
 topology = "fully-connected" # not used yet
 states = [2, 3, 5, 7, 11, 13]
 etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-n_tests = 100
+n_tests = 3
 sequence_length = 100000 # used ONLY to calculate relative errors in decoding
 verbose = True
 f_eval_prob = "results/evaluation_prob"
@@ -134,7 +136,7 @@ for eta in etas:
             if verbose:
                 print("[Test",test_count,"] Uncompressed evaluation probability:", evaluation_prob)
                 print("[Test",test_count,"] Compressed evaluation probability:", compressed_evaluation_prob)
-                print("[Test",test_count,"] RPD Error:", eval_relative_error)
+                print("[Test",test_count,"] Relative Error:", eval_relative_error)
             evaluation_errors.append(eval_relative_error)
 
             # Step 3: decoding problem
@@ -159,7 +161,7 @@ for eta in etas:
             if verbose:
                 print("[Test",test_count,"] Uncompressed decoding probability:", decoding_prob)
                 print("[Test",test_count,"] Compressed decoding probability:", compressed_decoding_prob)
-                print("[Test",test_count,"] RPD Error:", decod_relative_error)
+                print("[Test",test_count,"] Relative Error:", decod_relative_error)
             decoding_errors.append(decod_relative_error)
             path_errors = viterbi_comparison.count_differences_uncompressed()/sequence_length
             if verbose:
@@ -190,25 +192,38 @@ for eta in etas:
             ur_diff = []
             cr_diff = []
 
+
+            # CHECK IF THE STATES ARE SORTED, DEBUG, IF THEY ARE NOT SORT THEM
+            # WHEN YOU COMPUTE THE ERROR
+            for i in range(0, len(u_means)-1):
+                if u_means[i] >= u_means[i+1] :
+                    print("+++ OMG SORT THE U STATES PLZ +++")
+                    tmp = input()
+            for i in range(0, len(c_means)-1):
+                if c_means[i] >= c_means[i+1]:
+                    print("+++ OMG SORT THE C STATES PLZ +++")
+                    tmp = input()
+
+
+
             # Save differences
             # number of states, just to remember that
             ur_diff.append(r_nstates)
             cr_diff.append(r_nstates)
             # states
             for i in range(0, r_nstates):
-                ur_diff.append(compute_error(r_means[i], u_means[i]))
-                ur_diff.append(compute_error(r_stddevs[i], u_stddevs[i]))
-                cr_diff.append(compute_error(r_means[i], c_means[i]))
-                cr_diff.append(compute_error(r_stddevs[i], c_stddevs[i]))
+                ur_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
+                    u_means[i], u_stddevs[i]))
+                cr_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
+                    c_means[i], c_stddevs[i]))
             # transitions
             for i in range(0, r_nstates):
                 for j in range(0, r_nstates):
                     ur_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(u_trans[i*r_nstates+j])))
                     cr_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(c_trans[i*r_nstates+j])))
             # initial distributions
-            for i in range(0, r_nstates):
-                ur_diff.append(compute_error(exp(r_init[i]), exp(u_init[i])))
-                cr_diff.append(compute_error(exp(r_init[i]), exp(c_init[i])))
+            ur_diff.append(compute_error(r_init[0], u_init[0]))
+            cr_diff.append(compute_error(r_init[0], c_init[0]))
 
             ur_model_diff.append(ur_diff)
             cr_model_diff.append(cr_diff)

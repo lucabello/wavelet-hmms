@@ -20,17 +20,30 @@ public:
     /** Each entry is < n_w , K(n_w,j) for each state > */
     std::map<size_t, std::vector<wahmm::real_t>> mKValues;
     Model();
-    Model(const Model& that) = delete;
+    Model(const Model& that);
     Model(std::vector<State>& states, std::vector<wahmm::real_t>&relativeTr,
         std::vector<wahmm::real_t>& relativePi);
     /** Print the model in a readable format, with classic probabilities */
     void printModel();
+    /** Sort the model with ascending states order */
+    void sortModel();
     // Useful operators for model input/output
     friend ostream& operator<<(ostream& os, const Model& m);
     friend istream& operator>>(istream& is, Model& m);
 };
 
 Model::Model(){}
+
+Model::Model(const Model& that){
+    mStates = that.mStates;
+    for(int i = 0; i < mStates.size(); i++){
+        mLogTransitions[i] = new wahmm::real_t[mStates.size()];
+        for(int j = 0; j < mStates.size(); j++){
+            mLogTransitions[i][j] = that.mLogTransitions[i][j];
+        }
+    }
+    mLogPi = that.mLogPi;
+}
 
 Model::Model(std::vector<State>& states, std::vector<wahmm::real_t>& relativeTr,
     std::vector<wahmm::real_t>& relativePi){
@@ -73,6 +86,24 @@ void Model::printModel(){
         std::cout << exp(mLogPi[i]) << " ";
     std::cout << endl;
     std::cout << "----------" << std::endl;
+}
+
+void Model::sortModel(){
+    for(size_t i = 0; i < mStates.size(); i++){
+        for(size_t j = 0; j < mStates.size()-1; j++){
+            if(mStates[j].mean() > mStates[j+1].mean()){
+                State tmpState = mStates[j];
+                mStates[j] = mStates[j+1];
+                mStates[j+1] = tmpState;
+                wahmm::real_t *tmpTr = mLogTransitions[j];
+                mLogTransitions[j] = mLogTransitions[j+1];
+                mLogTransitions[j+1] = tmpTr;
+                wahmm::real_t tmpInit = mLogPi[j];
+                mLogPi[j] = mLogPi[j+1];
+                mLogPi[j+1] = tmpInit;
+            }
+        }
+    }
 }
 
 ostream& operator<<(ostream& os, const Model& m){

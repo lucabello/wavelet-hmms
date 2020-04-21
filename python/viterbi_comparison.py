@@ -28,15 +28,16 @@ def count_differences_compressed():
     return count_differences(state_path, compressed_path)
 
 if __name__ == "__main__":
-    pm_path = uio.read_path("results/pm_decoding_path")
+    verbose = True
+    # pm_path = uio.read_path("results/pm_decoding_path")
     wahmm_path = uio.read_path("results/decoding_path")
     compressed_path = uio.read_path("results/compressed_decoding_path")
 
-    print("--- PM decoding vs. WaHMM decoding ---")
-    count_differences(pm_path, wahmm_path)
-
-    print("--- PM decoding vs. Compressed decoding ---")
-    count_differences(pm_path, compressed_path)
+    # print("--- PM decoding vs. WaHMM decoding ---")
+    # count_differences(pm_path, wahmm_path)
+    #
+    # print("--- PM decoding vs. Compressed decoding ---")
+    # count_differences(pm_path, compressed_path)
 
     print("--- WaHMM decoding vs. Compressed decoding ---")
     count_differences(wahmm_path, compressed_path)

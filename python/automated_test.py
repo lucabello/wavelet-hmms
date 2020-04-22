@@ -6,6 +6,7 @@ import viterbi_comparison
 import utilities_io as uio
 from math import exp, log
 import numpy as np
+import time
 
 # helper functions
 # Relative change, https://en.wikipedia.org/wiki/Relative_change_and_difference
@@ -21,12 +22,22 @@ def kl_divergence_gaussians(m0, s0, m1, s1):
     b = (s0**2 + (m0-m1)**2)/(2*(s1**2))
     return a + b - 0.5
 
+def savetofile(suffix, list):
+    n = len(list)
+    f = prefix + suffix
+    out_file = open(f, "w")
+    for i in range(0, n):
+        out_file.write(str(list[i]) + " ")
+    out_file.close()
+
 # OPTIONS
 topology = "fully-connected" # not used yet
 states = [2, 3, 5, 7, 11, 13]
 etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-n_tests = 3
-sequence_length = 100000 # used ONLY to calculate relative errors in decoding
+cases_toskip = []
+cases_toskip.append([0.0, 0])
+n_tests = 100
+sequence_length = 1000000 # used ONLY to calculate relative errors in decoding
 verbose = True
 f_eval_prob = "results/evaluation_prob"
 f_compr_eval_prob = "results/compressed_evaluation_prob"
@@ -36,13 +47,19 @@ f_train_mod = "results/training_model"
 f_compr_train_mod = "results/compressed_training_model"
 # output files
 f_eval_out = "evaluation"
+f_eval_time_std_out = "evaluation_std_time"
+f_eval_time_compr_out = "evaluation_compr_time"
 f_decod_prob_out = "decoding_prob"
 f_decod_path_std_out = "decoding_std_path"
 f_decod_path_compr_out = "decoding_compr_path"
+f_decod_time_std_out = "decoding_std_time"
+f_decod_time_compr_out = "decoding_compr_time"
 f_train_std_out = "training_std"
 f_train_compr_out = "training_compr"
-f_train_model_std_out = "training_model_std"
-f_train_model_compr_out = "training_model_compr"
+# f_train_model_std_out = "training_model_std"
+# f_train_model_compr_out = "training_model_compr"
+f_train_time_std_out = "training_std_time"
+f_train_time_compr_out = "training_compr_time"
 # SCRIPTS PATHS
 f_generate_states = "python/generate_states.py"
 f_generate_model = "python/create_model_file.py"
@@ -79,11 +96,16 @@ if verbose:
     print("=== WaHMM AUTOMATED TESTING ===")
     print("eta:",etas," #states:",states," #tests:",n_tests)
 
+skip_index = 0
 test_count = 1
 for eta in etas:
     print("[Test] --- Using Eta:",eta,"---")
     for n_states in states:
         print("[Test] --- Model with",n_states,"states ---")
+        if cases_toskip[skip_index][0] == eta and cases_toskip[skip_index][1] == n_states:
+            print("[Test] --- Case skipped ---")
+            continue
+            skip_index = skip_index + 1
         if verbose:
             print("[Test] Generating states... ",end="",flush=True)
         arguments = [f_generate_states, str(eta), str(n_states)]
@@ -99,13 +121,19 @@ for eta in etas:
 
         # TEST THE MODEL
         evaluation_errors = []
+        evaluation_times_std = []
+        evaluation_times_compr = []
         decoding_errors = []
         decoding_paths_std_errors = []
         decoding_paths_compr_errors = []
+        decoding_times_std = []
+        decoding_times_compr = []
         ur_model_diff = []
         cr_model_diff = []
-        u_model = []
-        c_model = []
+        # u_model = []
+        # c_model = []
+        training_times_std = []
+        training_times_compr = []
         for iteration in range(1, n_tests+1):
             # Step 1: data generation
             if verbose:
@@ -117,12 +145,18 @@ for eta in etas:
             # Step 2: evaluation problem
             if verbose:
                 print("[Test",test_count,"] -- Running WaHMM uncompressed evaluation...")
+            start = time.perf_counter()
             subprocess.call(eval_std_args)
+            end = time.perf_counter()
+            evaluation_times_std.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM uncompressed evaluation finished.")
             if verbose:
                 print("[Test",test_count,"] Running WaHMM compressed evaluation...")
+            start = time.perf_counter()
             subprocess.call(eval_compr_args)
+            end = time.perf_counter()
+            evaluation_times_compr.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM compressed evaluation finished.")
 
@@ -142,12 +176,18 @@ for eta in etas:
             # Step 3: decoding problem
             if verbose:
                 print("[Test",test_count,"] -- Running WaHMM uncompressed decoding...")
+            start = time.perf_counter()
             subprocess.call(decod_std_args)
+            end = time.perf_counter()
+            decoding_times_std.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM uncompressed decoding finished.")
             if verbose:
                 print("[Test",test_count,"] Running WaHMM compressed decoding...")
+            start = time.perf_counter()
             subprocess.call(decod_compr_args)
+            end = time.perf_counter()
+            decoding_times_compr.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM compressed decoding finished.")
 
@@ -175,12 +215,18 @@ for eta in etas:
             # Step 4: training problem
             if verbose:
                 print("[Test",test_count,"] -- Running WaHMM uncompressed training...")
+            start = time.perf_counter()
             subprocess.call(train_std_args)
+            end = time.perf_counter()
+            training_times_std.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM uncompressed training finished.")
             if verbose:
                 print("[Test",test_count,"] Running WaHMM compressed training...")
+            start = time.perf_counter()
             subprocess.call(train_compr_args)
+            end = time.perf_counter()
+            training_times_compr.append(end - start)
             if verbose:
                 print("[Test",test_count,"] WaHMM compressed training finished.")
 
@@ -245,23 +291,15 @@ for eta in etas:
         prefix = "tests/FC_" + str(n_states) + "_" + str(eta) + "_"
         print("[Test] Saving files with prefix:",prefix)
         # Evaluation
-        out_file = open(prefix+f_eval_out, "w")
-        for i in range(0, n_tests):
-            out_file.write(str(evaluation_errors[i]) + " ")
-        out_file.close()
+        savetofile(f_eval_out, evaluation_errors)
+        savetofile(f_eval_time_std_out, evaluation_times_std)
+        savetofile(f_eval_time_compr_out, evaluation_times_compr)
         # Decoding
-        out_file = open(prefix+f_decod_prob_out, "w")
-        for i in range(0, n_tests):
-            out_file.write(str(decoding_errors[i]) + " ")
-        out_file.close()
-        out_file = open(prefix+f_decod_path_std_out, "w")
-        for i in range(0, n_tests):
-            out_file.write(str(decoding_paths_std_errors[i]) + " ")
-        out_file.close()
-        out_file = open(prefix+f_decod_path_compr_out, "w")
-        for i in range(0, n_tests):
-            out_file.write(str(decoding_paths_compr_errors[i]) + " ")
-        out_file.close()
+        savetofile(f_decod_prob_out, decoding_errors)
+        savetofile(f_decod_path_std_out, decoding_paths_std_errors)
+        savetofile(f_decod_path_compr_out, decoding_paths_compr_errors)
+        savetofile(f_decod_time_std_out, decoding_times_std)
+        savetofile(f_decod_time_compr_out, decoding_times_compr)
         # Training
         out_file = open(prefix+f_train_std_out, "w")
         for i in range(0, n_tests):
@@ -275,6 +313,8 @@ for eta in etas:
                 out_file.write(str(cr_model_diff[i][x]) + " ")
             out_file.write("\n")
         out_file.close()
+        savetofile(f_train_time_std_out, training_times_std)
+        savetofile(f_train_time_compr_out, training_times_compr)
 
         # out_file = open(prefix+f_train_model_std_out, "w")
         # for i in range(0, n_tests):

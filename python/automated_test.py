@@ -32,9 +32,11 @@ def savetofile(suffix, list):
 
 # OPTIONS
 topology = "fully-connected" # not used yet
-states = [2, 3, 5, 7, 11, 13]
+# states = [2, 3, 5, 7, 11, 13]
+states = [2, 3, 5, 7]
 etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 cases_toskip = []
+# cases_toskip.append([0.1, 11])
 cases_toskip.append([0.0, 0])
 n_tests = 100
 sequence_length = 1000000 # used ONLY to calculate relative errors in decoding
@@ -104,8 +106,8 @@ for eta in etas:
         print("[Test] --- Model with",n_states,"states ---")
         if cases_toskip[skip_index][0] == eta and cases_toskip[skip_index][1] == n_states:
             print("[Test] --- Case skipped ---")
-            continue
             skip_index = skip_index + 1
+            continue
         if verbose:
             print("[Test] Generating states... ",end="",flush=True)
         arguments = [f_generate_states, str(eta), str(n_states)]

@@ -4,15 +4,20 @@ import subprocess
 import sys
 import viterbi_comparison
 import utilities_io as uio
-from math import exp, log
+from math import exp, log, isnan
 import numpy as np
 import time
 
 # helper functions
 # Relative change, https://en.wikipedia.org/wiki/Relative_change_and_difference
 def compute_error(real, measured):
-    # if real is 0 something is wrong, so crash
-    return abs((real - measured) / real)
+    if abs(real) > abs(measured):
+        maximum = abs(real)
+    else:
+        maximum = abs(measured)
+    if real == 0 and measured == 0:
+        return 0
+    return abs( (real - measured) / maximum )
 
 # compute KL divergence between two univariate gaussians with means m and
 # standard deviation s
@@ -33,9 +38,51 @@ def savetofile(suffix, list):
 # OPTIONS
 topology = "fully-connected" # not used yet
 # states = [2, 3, 5, 7, 11, 13]
-states = [2, 3, 5, 7]
-etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+states = [2, 3, 5]
+# etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+etas = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 cases_toskip = []
+# cases_toskip.append([0.1, 2])
+# cases_toskip.append([0.1, 3])
+# cases_toskip.append([0.1, 5])
+# cases_toskip.append([0.1, 7])
+# cases_toskip.append([0.2, 2])
+# cases_toskip.append([0.2, 3])
+# cases_toskip.append([0.2, 5])
+# cases_toskip.append([0.2, 7])
+# cases_toskip.append([0.3, 2])
+# cases_toskip.append([0.3, 3])
+# cases_toskip.append([0.3, 5])
+# cases_toskip.append([0.3, 7])
+# cases_toskip.append([0.4, 2])
+# cases_toskip.append([0.4, 3])
+# cases_toskip.append([0.4, 5])
+# cases_toskip.append([0.4, 7])
+# cases_toskip.append([0.5, 2])
+# cases_toskip.append([0.5, 3])
+# cases_toskip.append([0.5, 5])
+# cases_toskip.append([0.5, 7])
+# cases_toskip.append([0.6, 2])
+# cases_toskip.append([0.6, 3])
+# cases_toskip.append([0.6, 5])
+# cases_toskip.append([0.6, 7])
+# cases_toskip.append([0.7, 2])
+# cases_toskip.append([0.7, 3])
+# cases_toskip.append([0.7, 5])
+# cases_toskip.append([0.7, 7])
+# cases_toskip.append([0.8, 2])
+# cases_toskip.append([0.8, 3])
+# cases_toskip.append([0.8, 5])
+# cases_toskip.append([0.8, 7])
+# cases_toskip.append([0.9, 2])
+# cases_toskip.append([0.9, 3])
+# cases_toskip.append([0.9, 5])
+# cases_toskip.append([0.9, 7])
+# cases_toskip.append([1.0, 2])
+# cases_toskip.append([1.0, 3])
+# cases_toskip.append([1.0, 5])
+# cases_toskip.append([1.0, 7])
+
 # cases_toskip.append([0.1, 11])
 cases_toskip.append([0.0, 0])
 n_tests = 100
@@ -244,11 +291,11 @@ for eta in etas:
             # CHECK IF THE STATES ARE SORTED, DEBUG, IF THEY ARE NOT SORT THEM
             # WHEN YOU COMPUTE THE ERROR
             for i in range(0, len(u_means)-1):
-                if u_means[i] >= u_means[i+1] :
+                if u_means[i] > u_means[i+1] :
                     print("+++ OMG SORT THE U STATES PLZ +++")
                     tmp = input()
             for i in range(0, len(c_means)-1):
-                if c_means[i] >= c_means[i+1]:
+                if c_means[i] > c_means[i+1]:
                     print("+++ OMG SORT THE C STATES PLZ +++")
                     tmp = input()
 
@@ -267,8 +314,8 @@ for eta in etas:
             # transitions
             for i in range(0, r_nstates):
                 for j in range(0, r_nstates):
-                    ur_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(u_trans[i*r_nstates+j])))
-                    cr_diff.append(compute_error(exp(r_trans[i*r_nstates+j]), exp(c_trans[i*r_nstates+j])))
+                    ur_diff.append(compute_error(r_trans[i*r_nstates+j], u_trans[i*r_nstates+j]))
+                    cr_diff.append(compute_error(r_trans[i*r_nstates+j], c_trans[i*r_nstates+j]))
             # initial distributions
             ur_diff.append(compute_error(r_init[0], u_init[0]))
             cr_diff.append(compute_error(r_init[0], c_init[0]))

@@ -5,6 +5,7 @@ import utilities_io as uio
 from math import sqrt
 import sys
 import matplotlib.pyplot as plt
+from statistics import median, pstdev
 
 def print(*args):
     __builtins__.print(*("%.2e" % a if isinstance(a, float) else a
@@ -57,6 +58,9 @@ def aggregate_measures_training(filename):
     tran_dev = 0.0
     init_avg = 0.0
     init_dev = 0.0
+    kl_list = []
+    tran_list = []
+    init_list = []
     in_file = open(filename, "r")
     tr_list = in_file.read().split()
     index = 0
@@ -64,38 +68,22 @@ def aggregate_measures_training(filename):
         n_states = int(tr_list[index])
         index = index + 1
         for i in range(0, n_states):
-            kl_avg = kl_avg + float(tr_list[index])
+            kl_list.append(float(tr_list[index]))
             index = index + 1
         for i in range(0, n_states):
             for j in range(0, n_states):
-                tran_avg = tran_avg + float(tr_list[index])
+                tran_list.append(float(tr_list[index]))
                 index = index + 1
-        init_avg = init_avg + float(tr_list[index])
+        init_list.append(float(tr_list[index]))
         index = index + 1
-    kl_avg = kl_avg / (n_tests * n_states)
-    tran_avg = tran_avg / (n_tests * n_states * n_states)
-    init_avg = init_avg / n_tests
+    kl_avg = median(kl_list)
+    tran_avg = median(tran_list)
+    init_avg = median(init_list)
     in_file.close()
     # calculate std dev
-    in_file = open(filename, "r")
-    tr_list = in_file.read().split()
-    index = 0
-    for t in range(0, n_tests):
-        n_states = int(tr_list[index])
-        index = index + 1
-        for i in range(0, n_states):
-            kl_dev = kl_dev + ((kl_avg - float(tr_list[index]))**2)
-            index = index + 1
-        for i in range(0, n_states):
-            for j in range(0, n_states):
-                tran_dev = tran_dev + ((tran_avg - float(tr_list[index]))**2)
-                index = index + 1
-        init_dev = init_dev + ((init_avg - float(tr_list[index]))**2)
-        index = index + 1
-    kl_dev = sqrt(kl_dev) / (n_tests * n_states)
-    tran_dev = sqrt(tran_dev) / (n_tests * n_states * n_states)
-    init_dev = sqrt(init_dev) / n_tests
-    in_file.close()
+    kl_dev = pstdev(kl_list)
+    tran_dev = pstdev(tran_list)
+    init_dev = pstdev(init_list)
     return kl_avg, kl_dev, tran_avg, tran_dev, init_avg, init_dev
 
 
@@ -186,7 +174,7 @@ if __name__ == "__main__":
     folder = "graphs/"
     topology = "FC"
     n_states = ["2", "3", "5"]
-    etas = ["0.1", "0.2", "1.0"]#, "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
+    etas = ["1.0", "0.9", "0.8"]#, "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
 
     for i in range(0, len(n_states)):
         ev_list = []
@@ -270,36 +258,52 @@ if __name__ == "__main__":
         y5.append(tr_in_list)
         y6.append(speedup_list)
 
+
+    # print data to plot as debug output
+    print("== Graph Data ==")
+    print("Evaluation:", y1)
+    print("Decoding:", y2)
+    print("Training KL:", y3)
+    print("Training transitions:", y4)
+    print("Training initial:", y5)
+    print("Speedup:", y6)
+
     f = folder + "GRAPH_"
-    x = [0.1, 0.2, 1.0]#, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    x = [1.0, 0.9, 0.8]#, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     for i in range(0, len(n_states)):
-        plt.scatter(x, y1[i], label=n_states[i]+" states")
+        plt.plot(x, y1[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(min(y1)[0]-abs(min(y1)[0]/10), max(y1)[0]+abs(max(y1)[0]/10))
     plt.savefig(f+"evaluation")
     plt.clf()
     for i in range(0, len(n_states)):
-        plt.scatter(x, y2[i], label=n_states[i]+" states")
+        plt.plot(x, y2[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(min(y2)[0]-abs(min(y2)[0]/10), max(y2)[0]+abs(max(y2)[0]/10))
     plt.savefig(f+"decoding")
     plt.clf()
     for i in range(0, len(n_states)):
-        plt.scatter(x, y3[i], label=n_states[i]+" states")
+        plt.plot(x, y3[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(min(y3)[0]-abs(min(y3)[0]/10), max(y3)[0]+abs(max(y3)[0]/10))
     plt.savefig(f+"training_kl")
     plt.clf()
     for i in range(0, len(n_states)):
-        plt.scatter(x, y4[i], label=n_states[i]+" states")
+        plt.plot(x, y4[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(-0.002, 0.0005)
     plt.savefig(f+"training_tr")
     plt.clf()
     for i in range(0, len(n_states)):
-        plt.scatter(x, y5[i], label=n_states[i]+" states")
+        plt.plot(x, y5[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(min(y5)[0]-abs(min(y5)[0]/10), max(y5)[0]+abs(max(y5)[0]/10))
     plt.savefig(f+"training_in")
     plt.clf()
     for i in range(0, len(n_states)):
-        plt.scatter(x, y6[i], label=n_states[i]+" states")
+        plt.plot(x, y6[i], label=n_states[i]+" states")
         plt.legend(loc='upper right', frameon=False)
+        #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
     plt.savefig(f+"speedup")
     plt.clf()

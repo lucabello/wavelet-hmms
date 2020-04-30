@@ -14,6 +14,7 @@ observations_file = "data/observations"
 bin_observations_file = "data/bin_observations"
 state_path_file = "data/path"
 model_file = "data/model"
+tests_folder = "tests/"
 
 # Observations are a series of floats on a single line separated by spaces
 def read_observations(f=observations_file, limit=0):
@@ -102,3 +103,10 @@ def read_model(f=model_file):
         offset = offset + 1
     in_file.close()
     return n_states, means, std_devs, transitions, initial
+
+# Write list to a file
+def write_list(f, l):
+    out_file = open(f, "w")
+    for x in l:
+        out_file.write(str(x)+" ")
+    out_file.close()

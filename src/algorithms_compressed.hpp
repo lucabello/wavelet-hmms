@@ -376,6 +376,7 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
         logVariance[i] = 0;
         for(int b = 0; b < nBlocks; b++){
             currentBd = c->blockData();
+            //v can sometimes have some numerical issues caused by HaMMLET code
             v = currentBd.s2 - 2*logAverage[i]*currentBd.s1 + currentBd.nw*logAverage[i]*logAverage[i];
             logVariance[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
             c->next();

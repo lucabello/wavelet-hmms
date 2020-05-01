@@ -174,7 +174,7 @@ if __name__ == "__main__":
     folder = "graphs/"
     topology = "FC"
     n_states = ["2", "3", "5"]
-    etas = ["1.0", "0.9", "0.8"]#, "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
+    etas = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
 
     for i in range(0, len(n_states)):
         ev_list = []
@@ -268,8 +268,8 @@ if __name__ == "__main__":
     print("Training initial:", y5)
     print("Speedup:", y6)
 
-    f = folder + "GRAPH_"
-    x = [1.0, 0.9, 0.8]#, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    f = folder + "GRAPH_" + topology + "_"
+    x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     for i in range(0, len(n_states)):
         plt.plot(x, y1[i], label=n_states[i]+" states")

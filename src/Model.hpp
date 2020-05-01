@@ -127,11 +127,18 @@ istream& operator>>(istream& is, Model& m){
         is >> inMean >> inStdDev;
         m.mStates.push_back(State(inMean, inStdDev));
     }
+    wahmm::real_t inTr;
+    std::string inTrString;
     m.mLogTransitions = new wahmm::real_t*[nStates];
     for(size_t i = 0; i < nStates; i++){
         m.mLogTransitions[i] = new wahmm::real_t[nStates];
         for(size_t j = 0; j < nStates; j++){
-            is >> m.mLogTransitions[i][j];
+            is >> inTrString;
+            if(inTrString == "-inf")
+                inTr = -infin;
+            else
+                inTr = std::stod(inTrString);
+            m.mLogTransitions[i][j] = inTr;
         }
     }
     wahmm::real_t inPi;

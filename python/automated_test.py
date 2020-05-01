@@ -36,7 +36,7 @@ def savetofile(suffix, list):
     out_file.close()
 
 # OPTIONS
-topology = "fully-connected" # not used yet
+topology = "circular" # not used yet
 # states = [2, 3, 5, 7, 11, 13]
 states = [2, 3, 5]
 # etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
@@ -83,10 +83,44 @@ cases_toskip = []
 # cases_toskip.append([1.0, 5])
 # cases_toskip.append([1.0, 7])
 
-# cases_toskip.append([0.1, 11])
+cases_toskip.append([1.0, 2])
+# cases_toskip.append([1.0, 3])
+# cases_toskip.append([1.0, 5])
+# cases_toskip.append([0.9, 2])
+# cases_toskip.append([0.9, 3])
+# cases_toskip.append([0.9, 5])
+# cases_toskip.append([0.8, 2])
+# cases_toskip.append([0.8, 3])
+# cases_toskip.append([0.8, 5])
+# cases_toskip.append([0.7, 2])
+# cases_toskip.append([0.7, 3])
+# cases_toskip.append([0.7, 5])
+# cases_toskip.append([0.6, 2])
+# cases_toskip.append([0.6, 3])
+# cases_toskip.append([0.6, 5])
+# cases_toskip.append([0.5, 2])
+# cases_toskip.append([0.5, 3])
+# cases_toskip.append([0.5, 5])
+# cases_toskip.append([0.4, 2])
+# cases_toskip.append([0.4, 3])
+# cases_toskip.append([0.4, 5])
+# cases_toskip.append([0.3, 2])
+# cases_toskip.append([0.3, 3])
+# cases_toskip.append([0.3, 5])
+# cases_toskip.append([0.2, 2])
+# cases_toskip.append([0.2, 3])
+# cases_toskip.append([0.2, 5])
+# cases_toskip.append([0.1, 2])
+# cases_toskip.append([0.1, 3])
+# cases_toskip.append([0.1, 5])
+
+
 cases_toskip.append([0.0, 0])
+
+
 n_tests = 100
 sequence_length = 1000000 # used ONLY to calculate relative errors in decoding
+topology_prefix = "CI"
 verbose = True
 f_eval_prob = "results/evaluation_prob"
 f_compr_eval_prob = "results/compressed_evaluation_prob"
@@ -337,7 +371,7 @@ for eta in etas:
 
 
         # Save testing results to file
-        prefix = "tests/FC_" + str(n_states) + "_" + str(eta) + "_"
+        prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" + str(eta) + "_"
         print("[Test] Saving files with prefix:",prefix)
         # Evaluation
         savetofile(f_eval_out, evaluation_errors)

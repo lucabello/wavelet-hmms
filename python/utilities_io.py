@@ -110,3 +110,10 @@ def write_list(f, l):
     for x in l:
         out_file.write(str(x)+" ")
     out_file.close()
+
+# Read file that is space-separated into a list
+def read_file_to_list(f):
+    in_file = open(f, "r")
+    list = in_file.read().split()
+    in_file.close()
+    return list

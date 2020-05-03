@@ -61,15 +61,21 @@ def aggregate_measures_training(filename):
     tr_list = in_file.read().split()
     index = 0
     for t in range(0, n_tests):
-        n_states = int(tr_list[index])
+        statesnum = int(tr_list[index])
         index = index + 1
-        for i in range(0, n_states):
-            kl_list.append(float(tr_list[index]))
+        current_kl = 0
+        for i in range(0, statesnum):
+            current_kl = current_kl + float(tr_list[index])
             index = index + 1
-        for i in range(0, n_states):
-            for j in range(0, n_states):
-                tran_list.append(float(tr_list[index]))
+        current_kl = current_kl/statesnum
+        kl_list.append(current_kl)
+        current_tr = 0
+        for i in range(0, statesnum):
+            for j in range(0, statesnum):
+                current_tr = current_tr + float(tr_list[index])
                 index = index + 1
+        current_tr = current_tr / (statesnum**2)
+        tran_list.append(current_tr)
         init_list.append(float(tr_list[index]))
         index = index + 1
     kl_avg = median(kl_list)
@@ -166,7 +172,7 @@ def single_boxplot(data, title, topology, suffix, ybot, ytop):
     for i in range(0, len(n_states)):
         ax[i].set(title=n_states[i]+" states")
         ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
-        # ax[i].set_ylim(ybot, ytop)
+        ax[i].set_ylim(ybot[i], ytop[i])
         ax[i].set_xticklabels(etas)
         ax[i].boxplot(data[i])
         # plt.figure(figsize=(2,1))
@@ -186,8 +192,15 @@ def produce_boxplots(topology):
             floatlist = [float(e) for e in list]
             ev.append(floatlist)
         ev_list.append(ev)
+    if topology == "LR":
+        tmp_ybot = [0.0,0.0,0.0]
+        tmp_ytop = [0.001, 0.001, 0.001]
+    else:
+        tmp_ybot = [0.0,0.0,0.0]
+        tmp_ytop = [0.003, 0.003, 0.003]
     single_boxplot(data=ev_list, title="Evaluation: probability error", \
-        topology=topology, suffix="evaluation_boxplot", ybot=0.0, ytop=0.003)
+        topology=topology, suffix="evaluation_boxplot", ybot=tmp_ybot, \
+        ytop=tmp_ytop)
     # Decoding
     de_list = []
     for n in n_states:
@@ -203,8 +216,15 @@ def produce_boxplots(topology):
                 floatlist_diff.append(floatlist_compr[i] - floatlist_std[i])
             de.append(floatlist_diff)
         de_list.append(de)
+    if topology == "LR":
+        tmp_ybot = [0.0,0.0,0.0]
+        tmp_ytop = [0.001, 0.001, 0.001]
+    else:
+        tmp_ybot = [0.0,0.0,0.0]
+        tmp_ytop = [0.001, 0.001, 0.001]
     single_boxplot(data=de_list, title="Decoding: path error increment", \
-        topology=topology, suffix="decoding_boxplot", ybot=0.0, ytop=0.001)
+        topology=topology, suffix="decoding_boxplot", ybot=tmp_ybot, \
+        ytop=tmp_ytop)
     # Training
     tr_kl_list = []
     tr_tr_list = []
@@ -230,18 +250,24 @@ def produce_boxplots(topology):
             for t in range(0, n_tests):
                 statesnum = int(tr_list[index])
                 index = index + 1
+                current_kl = 0
                 for i in range(0, statesnum):
-                    tr_kl_std.append(float(tr_list[index]))
+                    current_kl = current_kl + float(tr_list[index])
                     index = index + 1
+                current_kl = current_kl/statesnum
+                tr_kl_std.append(current_kl)
+                current_tr = 0
                 for i in range(0, statesnum):
                     for j in range(0, statesnum):
-                        tr_tr_std.append(float(tr_list[index]))
+                        current_tr = current_tr + float(tr_list[index])
                         index = index + 1
+                current_tr = current_tr / (statesnum**2)
+                tr_tr_std.append(current_tr)
                 tr_in_std.append(float(tr_list[index]))
                 index = index + 1
             in_file.close()
             in_file = open(f+f_tr_compr, "r")
-            list = in_file.read().split()
+            tr_list = in_file.read().split()
             index = 0
             for t in range(0, n_tests):
                 statesnum = int(tr_list[index])
@@ -269,12 +295,34 @@ def produce_boxplots(topology):
         tr_tr_list.append(tr_tr)
         tr_in_list.append(tr_in)
 
+    # Training KL
+    if topology == "CI":
+        tmp_ybot = [-0.05, -1, -2]
+        tmp_ytop = [0.01, 0.3, 1.5]
+    elif topology == "FC":
+        tmp_ybot = [-0.02, -1, -5]
+        tmp_ytop = [0.01, 0.3, 3]
+    else:
+        tmp_ybot = [-0.05, -8, -14]
+        tmp_ytop = [0.01, 5, 10]
     single_boxplot(data=tr_kl_list, title="Training: states error", \
-        topology=topology, suffix="training_kl_boxplot", ybot=-1, ytop=1)
+        topology=topology, suffix="training_kl_boxplot", ybot=tmp_ybot, \
+        ytop=tmp_ytop)
+    # Training TR
     single_boxplot(data=tr_tr_list, title="Training: transitions error", \
-        topology=topology, suffix="training_tr_boxplot", ybot=-1, ytop=1)
+        topology=topology, suffix="training_tr_boxplot", ybot=[-1.5, -1.5, -1.5], \
+        ytop=[1.5, 1.5, 1.5])
+    # Training IN
+    if topology == "LR":
+        tmp_ybot = [-0.000011, -0.000011, -0.000011]
+        tmp_ytop = [0.0000005, 0.0000005, 0.0000005]
+    else:
+        tmp_ybot = [-0.00000025, -0.000005, -0.00001]
+        tmp_ytop = [0.00000005, 0.0000005, 0.0000005]
     single_boxplot(data=tr_in_list, title="Training: initial distribution error", \
-        topology=topology, suffix="training_in_boxplot", ybot=-1, ytop=1)
+        topology=topology, suffix="training_in_boxplot", ybot=tmp_ybot, \
+        ytop=tmp_ytop)
+
 
 
 if __name__ == "__main__":
@@ -354,30 +402,30 @@ if __name__ == "__main__":
                 tr_in_list.append(tr_in_compr - tr_in_std)
 
             f = folder + topology + "_" + n_states[i]+"_"
-            uio.write_list(f+f_ev, ev_list) # used
-            uio.write_list(f+f_de_pr, de_list)
-            uio.write_list(f+f_de_std_pa, de_path_std_list)
-            uio.write_list(f+f_de_compr_pa, de_path_compr_list)
-            uio.write_list(f+f_tr_std+"_kl", tr_kl_std_list)
-            uio.write_list(f+f_tr_std+"_tr", tr_tr_std_list)
-            uio.write_list(f+f_tr_std+"_in", tr_in_std_list)
-            uio.write_list(f+f_tr_compr+"_kl", tr_kl_compr_list)
-            uio.write_list(f+f_tr_compr+"_tr", tr_tr_compr_list)
-            uio.write_list(f+f_tr_compr+"_in", tr_in_compr_list)
-            uio.write_list(f+f_ev_std_t, ev_t_std_list)
-            uio.write_list(f+f_ev_compr_t, ev_t_compr_list)
-            uio.write_list(f+f_de_std_t, de_t_std_list)
-            uio.write_list(f+f_de_compr_t, de_t_compr_list)
-            uio.write_list(f+f_tr_std_t, tr_t_std_list)
-            uio.write_list(f+f_tr_compr_t, tr_t_compr_list)
-            uio.write_list(f+"decoding_path", de_path_diff_list) # used
-            uio.write_list(f+"speedup", speedup_list)
-            uio.write_list(f+"training_kl", tr_kl_list) # used
-            uio.write_list(f+"training_tr", tr_tr_list) # used
-            uio.write_list(f+"training_in", tr_in_list) # used
-            uio.write_list(f+"speedup_evaluation", speedup_ev_list) # used
-            uio.write_list(f+"speedup_decoding", speedup_de_list) # used
-            uio.write_list(f+"speedup_training", speedup_tr_list) # used
+            # uio.write_list(f+f_ev, ev_list) # used
+            # uio.write_list(f+f_de_pr, de_list)
+            # uio.write_list(f+f_de_std_pa, de_path_std_list)
+            # uio.write_list(f+f_de_compr_pa, de_path_compr_list)
+            # uio.write_list(f+f_tr_std+"_kl", tr_kl_std_list)
+            # uio.write_list(f+f_tr_std+"_tr", tr_tr_std_list)
+            # uio.write_list(f+f_tr_std+"_in", tr_in_std_list)
+            # uio.write_list(f+f_tr_compr+"_kl", tr_kl_compr_list)
+            # uio.write_list(f+f_tr_compr+"_tr", tr_tr_compr_list)
+            # uio.write_list(f+f_tr_compr+"_in", tr_in_compr_list)
+            # uio.write_list(f+f_ev_std_t, ev_t_std_list)
+            # uio.write_list(f+f_ev_compr_t, ev_t_compr_list)
+            # uio.write_list(f+f_de_std_t, de_t_std_list)
+            # uio.write_list(f+f_de_compr_t, de_t_compr_list)
+            # uio.write_list(f+f_tr_std_t, tr_t_std_list)
+            # uio.write_list(f+f_tr_compr_t, tr_t_compr_list)
+            # uio.write_list(f+"decoding_path", de_path_diff_list) # used
+            # uio.write_list(f+"speedup", speedup_list)
+            # uio.write_list(f+"training_kl", tr_kl_list) # used
+            # uio.write_list(f+"training_tr", tr_tr_list) # used
+            # uio.write_list(f+"training_in", tr_in_list) # used
+            # uio.write_list(f+"speedup_evaluation", speedup_ev_list) # used
+            # uio.write_list(f+"speedup_decoding", speedup_de_list) # used
+            # uio.write_list(f+"speedup_training", speedup_tr_list) # used
 
 
             y1.append(ev_list)
@@ -407,7 +455,7 @@ if __name__ == "__main__":
         # Evaluation
         for i in range(0, len(n_states)):
             plt.title("Evaluation: probability error")
-            plt.plot(x, y1[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y1[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y1)[0]-abs(min(y1)[0]/10), max(y1)[0]+abs(max(y1)[0]/10))
         plt.savefig(f+"evaluation")
@@ -415,7 +463,7 @@ if __name__ == "__main__":
         # Decoding
         for i in range(0, len(n_states)):
             plt.title("Decoding: path error increment")
-            plt.plot(x, y2[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y2[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y2)[0]-abs(min(y2)[0]/10), max(y2)[0]+abs(max(y2)[0]/10))
         plt.savefig(f+"decoding")
@@ -423,21 +471,21 @@ if __name__ == "__main__":
         # Training
         for i in range(0, len(n_states)):
             plt.title("Training: states error")
-            plt.plot(x, y3[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y3[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y3)[0]-abs(min(y3)[0]/10), max(y3)[0]+abs(max(y3)[0]/10))
         plt.savefig(f+"training_kl")
         plt.clf()
         for i in range(0, len(n_states)):
             plt.title("Training: transitions error")
-            plt.plot(x, y4[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y4[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(-0.002, 0.0005)
         plt.savefig(f+"training_tr")
         plt.clf()
         for i in range(0, len(n_states)):
             plt.title("Training: initial distribution error")
-            plt.plot(x, y5[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y5[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y5)[0]-abs(min(y5)[0]/10), max(y5)[0]+abs(max(y5)[0]/10))
         plt.savefig(f+"training_in")
@@ -445,21 +493,21 @@ if __name__ == "__main__":
         # Speedup
         for i in range(0, len(n_states)):
             plt.title("Evaluation: Speedup")
-            plt.plot(x, y6e[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y6e[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
         plt.savefig(f+"speedup_evaluation")
         plt.clf()
         for i in range(0, len(n_states)):
             plt.title("Decoding: Speedup")
-            plt.plot(x, y6d[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y6d[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
         plt.savefig(f+"speedup_decoding")
         plt.clf()
         for i in range(0, len(n_states)):
             plt.title("Training: Speedup")
-            plt.plot(x, y6t[i], label=n_states[i]+" states", linestyle=line_styles[i])
+            plt.plot(x, y6t[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
             plt.legend(loc='upper right', frameon=False)
             #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
         plt.savefig(f+"speedup_training")

@@ -4,19 +4,20 @@ from __future__ import print_function
 import utilities_io as uio
 from math import sqrt
 import sys
+from os import listdir
+import subprocess
 import matplotlib.pyplot as plt
 from statistics import median, pstdev
-
-def print(*args):
-    __builtins__.print(*("%.2e" % a if isinstance(a, float) else a
-                         for a in args))
-
 
 # OPTIONS
 n_tests = 100
 save_boxplots = True
+topologies = ["FC", "CI", "LR"]
 n_states = ["2", "3", "5"]
 etas = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
+x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+folder = "plots/"
+base_savename = folder+"PLOT_"
 
 # file names
 f_ev = "evaluation"
@@ -33,140 +34,8 @@ f_tr_std_t = "training_std_time"
 f_tr_compr_t = "training_compr_time"
 
 
-def aggregate_measures(element_list):
-    element_list = [float(e) for e in element_list]
-    result_avg = median(element_list)
-    result_dev = pstdev(element_list)
-    return result_avg, result_dev
-
-def aggregate(prefix, suffix):
-    f = prefix + suffix
-    in_file = open(f, "r")
-    list = in_file.read().split()
-    in_file.close()
-    return aggregate_measures(list)
-
-def aggregate_measures_training(filename):
-    # calculate std avg
-    kl_avg = 0.0
-    kl_dev = 0.0
-    tran_avg = 0.0
-    tran_dev = 0.0
-    init_avg = 0.0
-    init_dev = 0.0
-    kl_list = []
-    tran_list = []
-    init_list = []
-    in_file = open(filename, "r")
-    tr_list = in_file.read().split()
-    index = 0
-    for t in range(0, n_tests):
-        statesnum = int(tr_list[index])
-        index = index + 1
-        current_kl = 0
-        for i in range(0, statesnum):
-            current_kl = current_kl + float(tr_list[index])
-            index = index + 1
-        current_kl = current_kl/statesnum
-        kl_list.append(current_kl)
-        current_tr = 0
-        for i in range(0, statesnum):
-            for j in range(0, statesnum):
-                current_tr = current_tr + float(tr_list[index])
-                index = index + 1
-        current_tr = current_tr / (statesnum**2)
-        tran_list.append(current_tr)
-        init_list.append(float(tr_list[index]))
-        index = index + 1
-    kl_avg = median(kl_list)
-    tran_avg = median(tran_list)
-    init_avg = median(init_list)
-    in_file.close()
-    # calculate std dev
-    kl_dev = pstdev(kl_list)
-    tran_dev = pstdev(tran_list)
-    init_dev = pstdev(init_list)
-    return kl_avg, kl_dev, tran_avg, tran_dev, init_avg, init_dev
-
-
-def compute_statistics(prefix):
-    # to compute
-    eval_err_avg = 0.0
-    eval_err_dev = 0.0
-    decod_err_avg = 0.0
-    decod_err_dev = 0.0
-    decod_err_path_std_avg = 0.0
-    decod_err_path_std_dev = 0.0
-    decod_err_path_compr_avg = 0.0
-    decod_err_path_compr_dev = 0.0
-    train_err_statekl_std_avg = 0.0
-    train_err_statekl_std_dev = 0.0
-    train_err_transitions_std_avg = 0.0
-    train_err_transitions_std_dev = 0.0
-    train_err_initial_std_avg = 0.0
-    train_err_initial_std_dev = 0.0
-    train_err_statekl_compr_avg = 0.0
-    train_err_statekl_compr_dev = 0.0
-    train_err_transitions_compr_avg = 0.0
-    train_err_transitions_compr_dev = 0.0
-    train_err_initial_compr_avg = 0.0
-    train_err_initial_compr_dev = 0.0
-    # -- times
-    eval_time_std_avg = 0.0
-    eval_time_std_dev = 0.0
-    eval_time_compr_avg = 0.0
-    eval_time_compr_dev = 0.0
-    decod_time_std_avg = 0.0
-    decod_time_std_dev = 0.0
-    decod_time_compr_avg = 0.0
-    decod_time_compr_dev = 0.0
-    train_time_std_avg = 0.0
-    train_time_std_dev = 0.0
-    train_time_compr_avg = 0.0
-    train_time_compr_dev = 0.0
-
-    # Evaluation
-    eval_err_avg, eval_err_dev = aggregate(prefix, f_ev)
-    eval_time_std_avg, eval_time_std_dev = aggregate(prefix, f_ev_std_t)
-    eval_time_compr_avg, eval_time_compr_dev = aggregate(prefix, f_ev_compr_t)
-
-    # Decoding
-    decod_err_avg, decod_err_dev = aggregate(prefix, f_de_pr)
-    decod_err_path_std_avg, decod_err_path_std_dev = aggregate(prefix, f_de_std_pa)
-    decod_err_path_compr_avg, decod_err_path_compr_dev = aggregate(prefix, f_de_compr_pa)
-    decod_time_std_avg, decod_time_std_dev = aggregate(prefix, f_de_std_t)
-    decod_time_compr_avg, decod_time_compr_dev = aggregate(prefix, f_de_compr_t)
-
-    # Training
-    train_err_statekl_std_avg, train_err_statekl_std_dev, train_err_transitions_std_avg, train_err_transitions_std_dev, train_err_initial_std_avg, train_err_initial_std_dev = aggregate_measures_training(prefix+f_tr_std)
-    train_err_statekl_compr_avg, train_err_statekl_compr_dev, train_err_transitions_compr_avg, train_err_transitions_compr_dev, train_err_initial_compr_avg, train_err_initial_compr_dev = aggregate_measures_training(prefix+f_tr_compr)
-    train_time_std_avg, train_time_std_dev = aggregate(prefix, f_tr_std_t)
-    train_time_compr_avg, train_time_compr_dev = aggregate(prefix, f_tr_compr_t)
-
-    # print informations
-    # print("=== Errors for",prefix,"===")
-    # print("Evaluation error:",eval_err_avg," (",eval_err_dev,")")
-    # print("Decoding error:",decod_err_avg," (",decod_err_dev,")")
-    # print("Decoding path error STD:",decod_err_path_std_avg," (",decod_err_path_std_dev,")")
-    # print("Decoding path error COMPR:",decod_err_path_compr_avg," (",decod_err_path_compr_dev,")")
-    # print("Training errors STD: StatesKL:",train_err_statekl_std_avg," (",train_err_statekl_std_dev,") Transitions:", train_err_transitions_std_avg," (",train_err_transitions_std_dev,")  Initial:",train_err_initial_std_avg," (",train_err_initial_std_dev,")")
-    # print("Training errors COMPR: StatesKL:",train_err_statekl_compr_avg," (",train_err_statekl_compr_dev,") Transitions:", train_err_transitions_compr_avg," (",train_err_transitions_compr_dev,")  Initial:",train_err_initial_compr_avg," (",train_err_initial_compr_dev,")")
-    # print("=== Execution times (in seconds) ===")
-    # print("Evaluation: STD:",eval_time_std_avg," (",eval_time_std_dev,") COMPR:",eval_time_compr_avg," (",eval_time_compr_dev,")")
-    # print("Decoding: STD:",decod_time_std_avg," (",decod_time_std_dev,") COMPR:",decod_time_compr_avg," (",decod_time_compr_dev,")")
-    # print("Training: STD:",train_time_std_avg," (",train_time_std_dev,") COMPR:",train_time_compr_avg," (",train_time_compr_dev,")")
-
-    return eval_err_avg, decod_err_avg, decod_err_path_std_avg, \
-        decod_err_path_compr_avg, train_err_statekl_std_avg, \
-         train_err_transitions_std_avg, train_err_initial_std_avg, \
-         train_err_statekl_compr_avg, train_err_transitions_compr_avg, \
-         train_err_initial_compr_avg, eval_time_std_avg, eval_time_compr_avg, \
-         decod_time_std_avg, decod_time_compr_avg, train_time_std_avg, \
-         train_time_compr_avg
-
-
-def single_boxplot(data, title, topology, suffix, ybot, ytop):
-    base_savename = "graphs/GRAPH_" + topology + "_"
+def save_boxplot(data, title, topology, suffix, ybot, ytop):
+    f = base_savename + topology + "_" + suffix
     plt.title(title)
     fig, ax = plt.subplots(len(n_states), constrained_layout=True)
     for i in range(0, len(n_states)):
@@ -177,34 +46,57 @@ def single_boxplot(data, title, topology, suffix, ybot, ytop):
         ax[i].boxplot(data[i])
         # plt.figure(figsize=(2,1))
         # plt.tight_layout()
-    plt.savefig(base_savename+suffix)
+    plt.savefig(f)
+    plt.close()
     plt.clf()
 
 
-def produce_boxplots(topology):
+def save_plot(x, y_allstates, title, topology, suffix, legendLoc='upper right'):
+    f = base_savename + topology + "_" + suffix
+    line_styles = ['-', '--', ':']
+    for i in range(0, len(n_states)):
+        plt.title(title)
+        plt.plot(x, y_allstates[i], label=n_states[i]+" states", \
+            linestyle=line_styles[i], marker="o")
+        plt.legend(loc=legendLoc, frameon=False)
+    plt.savefig(f)
+    plt.close()
+    plt.clf()
+
+
+def plot_evaluation(topology):
     ev_list = []
-    # Evaluation
+    y_all = []
     for n in n_states:
         ev = []
+        y = []
         for eta in etas:
             f = "tests/" + topology + "_" + n + "_" + eta + "_"
             list = uio.read_file_to_list(f+f_ev)
             floatlist = [float(e) for e in list]
+            y.append(median(floatlist))
             ev.append(floatlist)
         ev_list.append(ev)
+        y_all.append(y)
+    save_plot(x, y_all, "Evaluation: probability relative error", topology, \
+        "evaluation")
     if topology == "LR":
         tmp_ybot = [0.0,0.0,0.0]
-        tmp_ytop = [0.001, 0.001, 0.001]
+        tmp_ytop = [0.0005, 0.0005, 0.001]
     else:
         tmp_ybot = [0.0,0.0,0.0]
         tmp_ytop = [0.003, 0.003, 0.003]
-    single_boxplot(data=ev_list, title="Evaluation: probability error", \
+    save_boxplot(data=ev_list, title="Evaluation: probability error", \
         topology=topology, suffix="evaluation_boxplot", ybot=tmp_ybot, \
         ytop=tmp_ytop)
-    # Decoding
+
+
+def plot_decoding(topology):
     de_list = []
+    y_all = []
     for n in n_states:
         de = []
+        y = []
         for eta in etas:
             f = "tests/" + topology + "_" + n + "_" + eta + "_"
             list = uio.read_file_to_list(f+f_de_std_pa)
@@ -215,24 +107,66 @@ def produce_boxplots(topology):
             for i in range(0, len(floatlist_std)):
                 floatlist_diff.append(floatlist_compr[i] - floatlist_std[i])
             de.append(floatlist_diff)
+            y.append(median(floatlist_diff))
         de_list.append(de)
+        y_all.append(y)
+    save_plot(x, y_all, "Decoding: relative path error", topology, \
+        "decoding")
     if topology == "LR":
         tmp_ybot = [0.0,0.0,0.0]
         tmp_ytop = [0.001, 0.001, 0.001]
     else:
         tmp_ybot = [0.0,0.0,0.0]
         tmp_ytop = [0.001, 0.001, 0.001]
-    single_boxplot(data=de_list, title="Decoding: path error increment", \
+    save_boxplot(data=de_list, title="Decoding: path error increment", \
         topology=topology, suffix="decoding_boxplot", ybot=tmp_ybot, \
         ytop=tmp_ytop)
-    # Training
+
+
+def summarize_training(filename):
+    kl = []
+    tr = []
+    pi = []
+    list = uio.read_file_to_list(filename)
+    index = 0
+    for t in range(0, n_tests):
+        statesnum = int(list[index])
+        index = index + 1
+        # average state kl
+        current_kl = 0
+        for i in range(0, statesnum):
+            current_kl = current_kl + float(list[index])
+            index = index + 1
+        current_kl = current_kl/statesnum
+        kl.append(current_kl)
+        # average transition relative error
+        current_tr = 0
+        for i in range(0, statesnum):
+            for j in range(0, statesnum):
+                current_tr = current_tr + float(list[index])
+                index = index + 1
+        current_tr = current_tr / (statesnum**2)
+        tr.append(current_tr)
+        # average initial distribution relative error
+        pi.append(float(list[index]))
+        index = index + 1
+    return kl, tr, pi
+
+
+def plot_training(topology):
     tr_kl_list = []
     tr_tr_list = []
     tr_in_list = []
+    y_kl_all = []
+    y_tr_all = []
+    y_in_all = []
     for n in n_states:
         tr_kl = []
         tr_tr = []
         tr_in = []
+        y_kl = []
+        y_tr = []
+        y_in = []
         for eta in etas:
             tr_kl_std = []
             tr_tr_std = []
@@ -244,44 +178,10 @@ def produce_boxplots(topology):
             tr_tr_diff = []
             tr_in_diff = []
             f = "tests/" + topology + "_" + n + "_" + eta + "_"
-            in_file = open(f+f_tr_std, "r")
-            tr_list = in_file.read().split()
-            index = 0
-            for t in range(0, n_tests):
-                statesnum = int(tr_list[index])
-                index = index + 1
-                current_kl = 0
-                for i in range(0, statesnum):
-                    current_kl = current_kl + float(tr_list[index])
-                    index = index + 1
-                current_kl = current_kl/statesnum
-                tr_kl_std.append(current_kl)
-                current_tr = 0
-                for i in range(0, statesnum):
-                    for j in range(0, statesnum):
-                        current_tr = current_tr + float(tr_list[index])
-                        index = index + 1
-                current_tr = current_tr / (statesnum**2)
-                tr_tr_std.append(current_tr)
-                tr_in_std.append(float(tr_list[index]))
-                index = index + 1
-            in_file.close()
-            in_file = open(f+f_tr_compr, "r")
-            tr_list = in_file.read().split()
-            index = 0
-            for t in range(0, n_tests):
-                statesnum = int(tr_list[index])
-                index = index + 1
-                for i in range(0, statesnum):
-                    tr_kl_compr.append(float(tr_list[index]))
-                    index = index + 1
-                for i in range(0, statesnum):
-                    for j in range(0, statesnum):
-                        tr_tr_compr.append(float(tr_list[index]))
-                        index = index + 1
-                tr_in_compr.append(float(tr_list[index]))
-                index = index + 1
-            in_file.close()
+            # read standard training results
+            tr_kl_std, tr_tr_std, tr_in_std = summarize_training(f+f_tr_std)
+            # read compressed training results
+            tr_kl_compr, tr_tr_compr, tr_in_compr = summarize_training(f+f_tr_compr)
             for i in range(0, len(tr_kl_std)):
                 tr_kl_diff.append(tr_kl_compr[i] - tr_kl_std[i])
             for i in range(0, len(tr_tr_std)):
@@ -291,27 +191,39 @@ def produce_boxplots(topology):
             tr_kl.append(tr_kl_diff)
             tr_tr.append(tr_tr_diff)
             tr_in.append(tr_in_diff)
+            y_kl.append(median(tr_kl_diff))
+            y_tr.append(median(tr_tr_diff))
+            y_in.append(median(tr_in_diff))
         tr_kl_list.append(tr_kl)
         tr_tr_list.append(tr_tr)
         tr_in_list.append(tr_in)
+        y_kl_all.append(y_kl)
+        y_tr_all.append(y_tr)
+        y_in_all.append(y_in)
+
+    save_plot(x, y_kl_all, "Training: KL-divergence difference", topology, "training_kl")
+    save_plot(x, y_tr_all, "Training: Transitions relative error difference", topology, "training_tr")
+    save_plot(x, y_in_all, "Training: Initial distribution error difference", topology, "training_in")
 
     # Training KL
     if topology == "CI":
-        tmp_ybot = [-0.05, -1, -2]
-        tmp_ytop = [0.01, 0.3, 1.5]
+        tmp_ybot = [-0.01, -0.5, -2]
+        tmp_ytop = [0.01, 0.3, 0.5]
     elif topology == "FC":
-        tmp_ybot = [-0.02, -1, -5]
-        tmp_ytop = [0.01, 0.3, 3]
-    else:
-        tmp_ybot = [-0.05, -8, -14]
-        tmp_ytop = [0.01, 5, 10]
-    single_boxplot(data=tr_kl_list, title="Training: states error", \
+        tmp_ybot = [-0.02, -1, -2]
+        tmp_ytop = [0.01, 0.3, 1]
+    elif topology == "LR":
+        tmp_ybot = [-0.1, -8, -14]
+        tmp_ytop = [0.05, 8, 10]
+    save_boxplot(data=tr_kl_list, title="Training: states error", \
         topology=topology, suffix="training_kl_boxplot", ybot=tmp_ybot, \
         ytop=tmp_ytop)
     # Training TR
-    single_boxplot(data=tr_tr_list, title="Training: transitions error", \
-        topology=topology, suffix="training_tr_boxplot", ybot=[-1.5, -1.5, -1.5], \
-        ytop=[1.5, 1.5, 1.5])
+    tmp_ybot = [-0.5, -0.5, -0.5]
+    tmp_ytop = [0.5, 0.5, 0.5]
+    save_boxplot(data=tr_tr_list, title="Training: transitions error", \
+        topology=topology, suffix="training_tr_boxplot", ybot=tmp_ybot, \
+        ytop=tmp_ytop)
     # Training IN
     if topology == "LR":
         tmp_ybot = [-0.000011, -0.000011, -0.000011]
@@ -319,196 +231,83 @@ def produce_boxplots(topology):
     else:
         tmp_ybot = [-0.00000025, -0.000005, -0.00001]
         tmp_ytop = [0.00000005, 0.0000005, 0.0000005]
-    single_boxplot(data=tr_in_list, title="Training: initial distribution error", \
+    save_boxplot(data=tr_in_list, title="Training: initial distribution error", \
         topology=topology, suffix="training_in_boxplot", ybot=tmp_ybot, \
         ytop=tmp_ytop)
 
 
+def plot_speedup(topology):
+    titles = ["Speedup: evaluation", "Speedup: decoding", "Speedup: training"]
+    problems = ["evaluation", "decoding", "training"]
+    files = dict()
+    files["evaluation"] = [f_ev_std_t, f_ev_compr_t]
+    files["decoding"] =  [f_de_std_t, f_de_compr_t]
+    files["training"] = [f_tr_std_t, f_tr_compr_t]
+    for p in problems:
+        speedup_list = []
+        y_all = []
+        for n in n_states:
+            speedup = []
+            y = []
+            for eta in etas:
+                f = "tests/" + topology + "_" + n + "_" + eta + "_"
+                list = uio.read_file_to_list(f+files[p][0])
+                floatlist_std = [float(e) for e in list]
+                list = uio.read_file_to_list(f+files[p][1])
+                floatlist_compr = [float(e) for e in list]
+                floatlist_ratio = []
+                for i in range(0, len(floatlist_std)):
+                    floatlist_ratio.append(floatlist_std[i] / floatlist_compr[i])
+                speedup.append(floatlist_ratio)
+                y.append(median(floatlist_ratio))
+            speedup_list.append(speedup)
+            y_all.append(y)
+        save_plot(x, y_all, "Speedup: "+p, topology, "speedup_"+p)
+        if topology == "CI":
+            if p == "evaluation":
+                tmp_ybot = [0.0, 0.5, 1.0]
+                tmp_ytop = [1.0, 1.5, 2.0]
+            elif p == "decoding":
+                tmp_ybot = [0.5, 0.5, 0.5]
+                tmp_ytop = [1.5, 1.5, 1.5]
+            elif p =="training":
+                tmp_ybot = [0, 0, 0]
+                tmp_ytop = [300, 600, 1500]
+        elif topology == "FC":
+            if p == "evaluation":
+                tmp_ybot = [0.4, 0.75, 2]
+                tmp_ytop = [0.9, 1.75, 4]
+            elif p == "decoding":
+                tmp_ybot = [0.5, 0.5, 0.75]
+                tmp_ytop = [1.25, 1.25, 1.75]
+            elif p == "training":
+                tmp_ybot = [0, 0, 0]
+                tmp_ytop = [300, 700, 1500]
+        elif topology == "LR":
+            if p == "evaluation":
+                tmp_ybot = [0.25, 0.5, 1.25]
+                tmp_ytop = [1, 1.25, 2.25]
+            elif p == "decoding":
+                tmp_ybot = [0.5, 0.75, 1]
+                tmp_ytop = [1.25, 1.5, 2]
+            elif p == "training":
+                tmp_ybot = [0, 0, 0]
+                tmp_ytop = [400, 700, 1700]
+        save_boxplot(data=speedup_list, title="Speedup: "+p, \
+            topology=topology, suffix="speedup_"+p+"_boxplot", ybot=tmp_ybot, \
+            ytop=tmp_ytop)
 
 if __name__ == "__main__":
-    # prefix = sys.argv[1]
-    # prefix = "FC_2_0.1_"
-    folder = "graphs/"
-    topologies = ["FC", "CI", "LR"]
-    n_states = ["2", "3", "5"]
-    etas = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
-
+    # produce plots
     for topology in topologies:
-        produce_boxplots(topology)
-        y1 = []
-        y2 = []
-        y3 = []
-        y4 = []
-        y5 = []
-        y6e = []
-        y6d = []
-        y6t = []
-        for i in range(0, len(n_states)):
-            ev_list = []
-            de_list = []
-            de_path_std_list = []
-            de_path_compr_list = []
-            tr_kl_std_list = []
-            tr_tr_std_list = []
-            tr_in_std_list = []
-            tr_kl_compr_list = []
-            tr_tr_compr_list = []
-            tr_in_compr_list = []
-            ev_t_std_list = []
-            ev_t_compr_list = []
-            de_t_std_list = []
-            de_t_compr_list = []
-            tr_t_std_list = []
-            tr_t_compr_list = []
-            de_path_diff_list = []
-            speedup_ev_list = []
-            speedup_de_list = []
-            speedup_tr_list = []
-            speedup_list = []
-            tr_kl_list = []
-            tr_tr_list = []
-            tr_in_list = []
-
-            for j in range(0, len(etas)):
-                prefix = "tests/" + topology + "_" + n_states[i]+"_"+etas[j]+"_"
-                ev, de, de_path_std, de_path_compr, tr_kl_std, tr_tr_std, \
-                    tr_in_std, tr_kl_compr, tr_tr_compr, tr_in_compr, ev_t_std, \
-                    ev_t_compr, de_t_std, de_t_compr, tr_t_std, \
-                    tr_t_compr = compute_statistics(prefix)
-
-                ev_list.append(ev)
-                de_list.append(de)
-                de_path_std_list.append(de_path_std)
-                de_path_compr_list.append(de_path_compr)
-                tr_kl_std_list.append(tr_kl_std)
-                tr_tr_std_list.append(tr_tr_std)
-                tr_in_std_list.append(tr_in_std)
-                tr_kl_compr_list.append(tr_kl_compr)
-                tr_tr_compr_list.append(tr_tr_compr)
-                tr_in_compr_list.append(tr_in_compr)
-                ev_t_std_list.append(ev_t_std)
-                ev_t_compr_list.append(ev_t_compr)
-                de_t_std_list.append(de_t_std)
-                de_t_compr_list.append(de_t_compr)
-                tr_t_std_list.append(tr_t_std)
-                tr_t_compr_list.append(tr_t_compr)
-                de_path_diff_list.append(de_path_compr - de_path_std)
-                speedup_ev_list.append(ev_t_std/ev_t_compr)
-                speedup_de_list.append(de_t_std/de_t_compr)
-                speedup_tr_list.append(tr_t_std/tr_t_compr)
-                speedup_list.append( (ev_t_std+de_t_std+tr_t_std) / (ev_t_compr+de_t_compr+tr_t_compr) )
-                tr_kl_list.append(tr_kl_compr - tr_kl_std)
-                tr_tr_list.append(tr_tr_compr - tr_tr_std)
-                tr_in_list.append(tr_in_compr - tr_in_std)
-
-            f = folder + topology + "_" + n_states[i]+"_"
-            # uio.write_list(f+f_ev, ev_list) # used
-            # uio.write_list(f+f_de_pr, de_list)
-            # uio.write_list(f+f_de_std_pa, de_path_std_list)
-            # uio.write_list(f+f_de_compr_pa, de_path_compr_list)
-            # uio.write_list(f+f_tr_std+"_kl", tr_kl_std_list)
-            # uio.write_list(f+f_tr_std+"_tr", tr_tr_std_list)
-            # uio.write_list(f+f_tr_std+"_in", tr_in_std_list)
-            # uio.write_list(f+f_tr_compr+"_kl", tr_kl_compr_list)
-            # uio.write_list(f+f_tr_compr+"_tr", tr_tr_compr_list)
-            # uio.write_list(f+f_tr_compr+"_in", tr_in_compr_list)
-            # uio.write_list(f+f_ev_std_t, ev_t_std_list)
-            # uio.write_list(f+f_ev_compr_t, ev_t_compr_list)
-            # uio.write_list(f+f_de_std_t, de_t_std_list)
-            # uio.write_list(f+f_de_compr_t, de_t_compr_list)
-            # uio.write_list(f+f_tr_std_t, tr_t_std_list)
-            # uio.write_list(f+f_tr_compr_t, tr_t_compr_list)
-            # uio.write_list(f+"decoding_path", de_path_diff_list) # used
-            # uio.write_list(f+"speedup", speedup_list)
-            # uio.write_list(f+"training_kl", tr_kl_list) # used
-            # uio.write_list(f+"training_tr", tr_tr_list) # used
-            # uio.write_list(f+"training_in", tr_in_list) # used
-            # uio.write_list(f+"speedup_evaluation", speedup_ev_list) # used
-            # uio.write_list(f+"speedup_decoding", speedup_de_list) # used
-            # uio.write_list(f+"speedup_training", speedup_tr_list) # used
-
-
-            y1.append(ev_list)
-            y2.append(de_path_diff_list)
-            y3.append(tr_kl_list)
-            y4.append(tr_tr_list)
-            y5.append(tr_in_list)
-            y6e.append(speedup_ev_list)
-            y6d.append(speedup_de_list)
-            y6t.append(speedup_tr_list)
-
-
-
-        # print data to plot as debug output
-        # print("== Graph Data ==")
-        # print("Evaluation:", y1)
-        # print("Decoding:", y2)
-        # print("Training KL:", y3)
-        # print("Training transitions:", y4)
-        # print("Training initial:", y5)
-        # print("Speedup:", y6)
-
-        f = folder + "GRAPH_" + topology + "_"
-        x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-        line_styles = ['-', '--', ':']
-
-        # Evaluation
-        for i in range(0, len(n_states)):
-            plt.title("Evaluation: probability error")
-            plt.plot(x, y1[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y1)[0]-abs(min(y1)[0]/10), max(y1)[0]+abs(max(y1)[0]/10))
-        plt.savefig(f+"evaluation")
-        plt.clf()
-        # Decoding
-        for i in range(0, len(n_states)):
-            plt.title("Decoding: path error increment")
-            plt.plot(x, y2[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y2)[0]-abs(min(y2)[0]/10), max(y2)[0]+abs(max(y2)[0]/10))
-        plt.savefig(f+"decoding")
-        plt.clf()
-        # Training
-        for i in range(0, len(n_states)):
-            plt.title("Training: states error")
-            plt.plot(x, y3[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y3)[0]-abs(min(y3)[0]/10), max(y3)[0]+abs(max(y3)[0]/10))
-        plt.savefig(f+"training_kl")
-        plt.clf()
-        for i in range(0, len(n_states)):
-            plt.title("Training: transitions error")
-            plt.plot(x, y4[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(-0.002, 0.0005)
-        plt.savefig(f+"training_tr")
-        plt.clf()
-        for i in range(0, len(n_states)):
-            plt.title("Training: initial distribution error")
-            plt.plot(x, y5[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y5)[0]-abs(min(y5)[0]/10), max(y5)[0]+abs(max(y5)[0]/10))
-        plt.savefig(f+"training_in")
-        plt.clf()
-        # Speedup
-        for i in range(0, len(n_states)):
-            plt.title("Evaluation: Speedup")
-            plt.plot(x, y6e[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
-        plt.savefig(f+"speedup_evaluation")
-        plt.clf()
-        for i in range(0, len(n_states)):
-            plt.title("Decoding: Speedup")
-            plt.plot(x, y6d[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
-        plt.savefig(f+"speedup_decoding")
-        plt.clf()
-        for i in range(0, len(n_states)):
-            plt.title("Training: Speedup")
-            plt.plot(x, y6t[i], label=n_states[i]+" states", linestyle=line_styles[i], marker="o")
-            plt.legend(loc='upper right', frameon=False)
-            #plt.ylim(min(y6)[0]-10, max(y6)[0]+abs(max(y6)[0]/10))
-        plt.savefig(f+"speedup_training")
-        plt.clf()
+        f = base_savename + topology + "_"
+        plot_evaluation(topology)
+        plot_decoding(topology)
+        plot_training(topology)
+        plot_speedup(topology)
+    # join plots with corresponding boxplot
+    files = listdir(folder)
+    for f in files:
+        if "boxplot" not in f and "MERGE" not in f:
+            subprocess.call("convert "+folder+f+" "+folder+f[:-4]+"_boxplot.png +append " + \
+                folder+"MERGE_"+f[5:], shell=True)

@@ -28,10 +28,6 @@ using std::cout;
 using std::ifstream;
 using std::ofstream;
 
-// #include <stdexcept>
-// using std::runtime_error;	// TODO throw the appropriate errors, like logic_error etc.
-// using std::exception;
-
 #include <cmath>
 using std::pow;
 using std::exp;	// e^x

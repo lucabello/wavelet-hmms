@@ -11,7 +11,8 @@ if len(sys.argv) != 3:
     exit(1)
 
 # OPTIONS
-eta = float(sys.argv[1]) # 0 is total overlap, 1 is non-overlapping within +/- 3 sigmas
+eta = float(sys.argv[1]) # 0 is total overlap, 1 is non-overlapping within
+    # +/- 3 sigmas
 n_states = int(sys.argv[2])
 filename = "data/states"
 

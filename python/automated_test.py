@@ -9,7 +9,7 @@ import numpy as np
 import time
 
 # helper functions
-# Relative change, https://en.wikipedia.org/wiki/Relative_change_and_difference
+# using a relative difference
 def compute_error(real, measured):
     if abs(real) > abs(measured):
         maximum = abs(real)
@@ -36,91 +36,15 @@ def savetofile(suffix, list):
     out_file.close()
 
 # OPTIONS
-topology = "circular" # not used yet
+topology = "fully-connected" # not used yet
 # states = [2, 3, 5, 7, 11, 13]
 states = [2, 3, 5]
 # etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 etas = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
-cases_toskip = []
-# cases_toskip.append([0.1, 2])
-# cases_toskip.append([0.1, 3])
-# cases_toskip.append([0.1, 5])
-# cases_toskip.append([0.1, 7])
-# cases_toskip.append([0.2, 2])
-# cases_toskip.append([0.2, 3])
-# cases_toskip.append([0.2, 5])
-# cases_toskip.append([0.2, 7])
-# cases_toskip.append([0.3, 2])
-# cases_toskip.append([0.3, 3])
-# cases_toskip.append([0.3, 5])
-# cases_toskip.append([0.3, 7])
-# cases_toskip.append([0.4, 2])
-# cases_toskip.append([0.4, 3])
-# cases_toskip.append([0.4, 5])
-# cases_toskip.append([0.4, 7])
-# cases_toskip.append([0.5, 2])
-# cases_toskip.append([0.5, 3])
-# cases_toskip.append([0.5, 5])
-# cases_toskip.append([0.5, 7])
-# cases_toskip.append([0.6, 2])
-# cases_toskip.append([0.6, 3])
-# cases_toskip.append([0.6, 5])
-# cases_toskip.append([0.6, 7])
-# cases_toskip.append([0.7, 2])
-# cases_toskip.append([0.7, 3])
-# cases_toskip.append([0.7, 5])
-# cases_toskip.append([0.7, 7])
-# cases_toskip.append([0.8, 2])
-# cases_toskip.append([0.8, 3])
-# cases_toskip.append([0.8, 5])
-# cases_toskip.append([0.8, 7])
-# cases_toskip.append([0.9, 2])
-# cases_toskip.append([0.9, 3])
-# cases_toskip.append([0.9, 5])
-# cases_toskip.append([0.9, 7])
-# cases_toskip.append([1.0, 2])
-# cases_toskip.append([1.0, 3])
-# cases_toskip.append([1.0, 5])
-# cases_toskip.append([1.0, 7])
-
-cases_toskip.append([1.0, 2])
-# cases_toskip.append([1.0, 3])
-# cases_toskip.append([1.0, 5])
-# cases_toskip.append([0.9, 2])
-# cases_toskip.append([0.9, 3])
-# cases_toskip.append([0.9, 5])
-# cases_toskip.append([0.8, 2])
-# cases_toskip.append([0.8, 3])
-# cases_toskip.append([0.8, 5])
-# cases_toskip.append([0.7, 2])
-# cases_toskip.append([0.7, 3])
-# cases_toskip.append([0.7, 5])
-# cases_toskip.append([0.6, 2])
-# cases_toskip.append([0.6, 3])
-# cases_toskip.append([0.6, 5])
-# cases_toskip.append([0.5, 2])
-# cases_toskip.append([0.5, 3])
-# cases_toskip.append([0.5, 5])
-# cases_toskip.append([0.4, 2])
-# cases_toskip.append([0.4, 3])
-# cases_toskip.append([0.4, 5])
-# cases_toskip.append([0.3, 2])
-# cases_toskip.append([0.3, 3])
-# cases_toskip.append([0.3, 5])
-# cases_toskip.append([0.2, 2])
-# cases_toskip.append([0.2, 3])
-# cases_toskip.append([0.2, 5])
-# cases_toskip.append([0.1, 2])
-# cases_toskip.append([0.1, 3])
-# cases_toskip.append([0.1, 5])
-
-
-cases_toskip.append([0.0, 0])
-
 
 n_tests = 100
 sequence_length = 1000000 # used ONLY to calculate relative errors in decoding
-topology_prefix = "CI"
+topology_prefix = "FC"
 verbose = True
 f_eval_prob = "results/evaluation_prob"
 f_compr_eval_prob = "results/compressed_evaluation_prob"
@@ -185,17 +109,12 @@ for eta in etas:
     print("[Test] --- Using Eta:",eta,"---")
     for n_states in states:
         print("[Test] --- Model with",n_states,"states ---")
-        if cases_toskip[skip_index][0] == eta and cases_toskip[skip_index][1] == n_states:
-            print("[Test] --- Case skipped ---")
-            skip_index = skip_index + 1
-            continue
         if verbose:
             print("[Test] Generating states... ",end="",flush=True)
         arguments = [f_generate_states, str(eta), str(n_states)]
         subprocess.call(arguments)
         if verbose:
             print("done.",flush=True)
-
         if verbose:
             print("[Test] Generating model... ",end="",flush=True)
         subprocess.call(f_generate_model)
@@ -220,28 +139,33 @@ for eta in etas:
         for iteration in range(1, n_tests+1):
             # Step 1: data generation
             if verbose:
-                print("[Test",test_count,"] Generating data... ",end="",flush=True)
+                print("[Test",test_count,"] Generating data... ",end="",
+                    flush=True)
             subprocess.call(f_generate_data)
             if verbose:
                 print("done.",flush=True)
 
             # Step 2: evaluation problem
             if verbose:
-                print("[Test",test_count,"] -- Running WaHMM uncompressed evaluation...")
+                print("[Test",test_count,"] -- Running WaHMM uncompressed "
+                    "evaluation...")
             start = time.perf_counter()
             subprocess.call(eval_std_args)
             end = time.perf_counter()
             evaluation_times_std.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM uncompressed evaluation finished.")
+                print("[Test",test_count,"] WaHMM uncompressed evaluation "
+                    "finished.")
             if verbose:
-                print("[Test",test_count,"] Running WaHMM compressed evaluation...")
+                print("[Test",test_count,"] Running WaHMM compressed "
+                    "evaluation...")
             start = time.perf_counter()
             subprocess.call(eval_compr_args)
             end = time.perf_counter()
             evaluation_times_compr.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM compressed evaluation finished.")
+                print("[Test",test_count,"] WaHMM compressed evaluation "
+                    "finished.")
 
             in_eval_file = open(f_eval_prob, "r")
             evaluation_prob = float(in_eval_file.read())
@@ -249,30 +173,38 @@ for eta in etas:
             in_eval_file = open(f_compr_eval_prob, "r")
             compressed_evaluation_prob = float(in_eval_file.read())
             in_eval_file.close()
-            eval_relative_error = compute_error(evaluation_prob, compressed_evaluation_prob)
+            eval_relative_error = compute_error(evaluation_prob,
+                compressed_evaluation_prob)
             if verbose:
-                print("[Test",test_count,"] Uncompressed evaluation probability:", evaluation_prob)
-                print("[Test",test_count,"] Compressed evaluation probability:", compressed_evaluation_prob)
-                print("[Test",test_count,"] Relative Error:", eval_relative_error)
+                print("[Test",test_count,"] Uncompressed evaluation "
+                    "probability:", evaluation_prob)
+                print("[Test",test_count,"] Compressed evaluation "
+                    "probability:", compressed_evaluation_prob)
+                print("[Test",test_count,"] Relative Error:",
+                    eval_relative_error)
             evaluation_errors.append(eval_relative_error)
 
             # Step 3: decoding problem
             if verbose:
-                print("[Test",test_count,"] -- Running WaHMM uncompressed decoding...")
+                print("[Test",test_count,"] -- Running WaHMM uncompressed "
+                    "decoding...")
             start = time.perf_counter()
             subprocess.call(decod_std_args)
             end = time.perf_counter()
             decoding_times_std.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM uncompressed decoding finished.")
+                print("[Test",test_count,"] WaHMM uncompressed decoding "
+                    "finished.")
             if verbose:
-                print("[Test",test_count,"] Running WaHMM compressed decoding...")
+                print("[Test",test_count,"] Running WaHMM compressed "
+                    "decoding...")
             start = time.perf_counter()
             subprocess.call(decod_compr_args)
             end = time.perf_counter()
             decoding_times_compr.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM compressed decoding finished.")
+                print("[Test",test_count,"] WaHMM compressed decoding "
+                    "finished.")
 
             in_decod_file = open(f_decod_prob, "r")
             decoding_prob = float(in_decod_file.read())
@@ -280,60 +212,61 @@ for eta in etas:
             in_decod_file = open(f_compr_decod_prob, "r")
             compressed_decoding_prob = float(in_decod_file.read())
             in_decod_file.close()
-            decod_relative_error = compute_error(decoding_prob, compressed_decoding_prob)
+            decod_relative_error = compute_error(decoding_prob,
+                compressed_decoding_prob)
             if verbose:
-                print("[Test",test_count,"] Uncompressed decoding probability:", decoding_prob)
-                print("[Test",test_count,"] Compressed decoding probability:", compressed_decoding_prob)
-                print("[Test",test_count,"] Relative Error:", decod_relative_error)
+                print("[Test",test_count,"] Uncompressed decoding probability:",
+                    decoding_prob)
+                print("[Test",test_count,"] Compressed decoding probability:",
+                    compressed_decoding_prob)
+                print("[Test",test_count,"] Relative Error:",
+                    decod_relative_error)
             decoding_errors.append(decod_relative_error)
-            path_errors = viterbi_comparison.count_differences_uncompressed()/sequence_length
+            path_errors = viterbi_comparison.count_differences_uncompressed() /
+                sequence_length
             if verbose:
-                print("[Test",test_count,"] Fraction of errors in path for uncompressed:", path_errors)
+                print("[Test",test_count,"] Fraction of errors in path for "
+                    "uncompressed:", path_errors)
             decoding_paths_std_errors.append(path_errors)
-            path_errors = viterbi_comparison.count_differences_compressed()/sequence_length
+            path_errors = viterbi_comparison.count_differences_compressed() /
+                sequence_length
             if verbose:
-                print("[Test",test_count,"] Fraction of errors in path for compressed:", path_errors)
+                print("[Test",test_count,"] Fraction of errors in path for "
+                    "compressed:", path_errors)
             decoding_paths_compr_errors.append(path_errors)
 
             # Step 4: training problem
             if verbose:
-                print("[Test",test_count,"] -- Running WaHMM uncompressed training...")
+                print("[Test",test_count,"] -- Running WaHMM uncompressed "
+                    "training...")
             start = time.perf_counter()
             subprocess.call(train_std_args)
             end = time.perf_counter()
             training_times_std.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM uncompressed training finished.")
+                print("[Test",test_count,"] WaHMM uncompressed training "
+                    "finished.")
             if verbose:
-                print("[Test",test_count,"] Running WaHMM compressed training...")
+                print("[Test",test_count,"] Running WaHMM compressed "
+                    "training...")
             start = time.perf_counter()
             subprocess.call(train_compr_args)
             end = time.perf_counter()
             training_times_compr.append(end - start)
             if verbose:
-                print("[Test",test_count,"] WaHMM compressed training finished.")
+                print("[Test",test_count,"] WaHMM compressed training "
+                    "finished.")
 
             # r stands for "real", u for "uncompressed" and c for "compressed"
-            r_nstates, r_means, r_stddevs, r_trans, r_init = uio.read_model()
-            u_nstates, u_means, u_stddevs, u_trans, u_init = uio.read_model(f_train_mod)
-            c_nstates, c_means, c_stddevs, c_trans, c_init = uio.read_model(f_compr_train_mod)
+            r_nstates, r_means, r_stddevs, r_trans, r_init = uio
+                .read_model()
+            u_nstates, u_means, u_stddevs, u_trans, u_init = uio
+                .read_model(f_train_mod)
+            c_nstates, c_means, c_stddevs, c_trans, c_init = uio
+                .read_model(f_compr_train_mod)
 
             ur_diff = []
             cr_diff = []
-
-
-            # CHECK IF THE STATES ARE SORTED, DEBUG, IF THEY ARE NOT SORT THEM
-            # WHEN YOU COMPUTE THE ERROR
-            for i in range(0, len(u_means)-1):
-                if u_means[i] > u_means[i+1] :
-                    print("+++ OMG SORT THE U STATES PLZ +++")
-                    tmp = input()
-            for i in range(0, len(c_means)-1):
-                if c_means[i] > c_means[i+1]:
-                    print("+++ OMG SORT THE C STATES PLZ +++")
-                    tmp = input()
-
-
 
             # Save differences
             # number of states, just to remember that
@@ -348,8 +281,10 @@ for eta in etas:
             # transitions
             for i in range(0, r_nstates):
                 for j in range(0, r_nstates):
-                    ur_diff.append(compute_error(r_trans[i*r_nstates+j], u_trans[i*r_nstates+j]))
-                    cr_diff.append(compute_error(r_trans[i*r_nstates+j], c_trans[i*r_nstates+j]))
+                    ur_diff.append(compute_error(r_trans[i*r_nstates+j],
+                        u_trans[i*r_nstates+j]))
+                    cr_diff.append(compute_error(r_trans[i*r_nstates+j],
+                        c_trans[i*r_nstates+j]))
             # initial distributions
             ur_diff.append(compute_error(r_init[0], u_init[0]))
             cr_diff.append(compute_error(r_init[0], c_init[0]))
@@ -357,21 +292,12 @@ for eta in etas:
             ur_model_diff.append(ur_diff)
             cr_model_diff.append(cr_diff)
 
-            # Save actual models
-            # u_model_file = open(f_train_mod, "r")
-            # u_model_list = u_model_file.read().split()
-            # u_model.append(u_model_list)
-            # u_model_file.close()
-            # c_model_file = open(f_compr_train_mod, "r")
-            # c_model_list = c_model_file.read().split()
-            # c_model.append(c_model_list)
-            # c_model_file.close()
-
             test_count = test_count + 1
 
 
         # Save testing results to file
-        prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" + str(eta) + "_"
+        prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" +
+            str(eta) + "_"
         print("[Test] Saving files with prefix:",prefix)
         # Evaluation
         savetofile(f_eval_out, evaluation_errors)
@@ -399,34 +325,5 @@ for eta in etas:
         savetofile(f_train_time_std_out, training_times_std)
         savetofile(f_train_time_compr_out, training_times_compr)
 
-        # out_file = open(prefix+f_train_model_std_out, "w")
-        # for i in range(0, n_tests):
-        #     for x in range(0, len(u_model[i])):
-        #         out_file.write(str(u_model[i][x]) + " ")
-        #     out_file.write("\n")
-        # out_file.close()
-        # out_file = open(prefix+f_train_model_compr_out, "w")
-        # for i in range(0, n_tests):
-        #     for x in range(0, len(c_model[i])):
-        #         out_file.write(str(c_model[i][x]) + " ")
-        #     out_file.write("\n")
-        # out_file.close()
-
 
 print("\n[Test] -- Testing is finished.")
-# Print results
-# ATTENTION: THESE RESULTS ARE CURRENTLY RELATED TO THE LAST TEST ONLY
-# print("\n=== TESTING RESULTS ===")
-# print("= Evaluation Errors =")
-# print(evaluation_errors)
-# print("= Decoding Errors Prob =")
-# print(decoding_errors)
-# print("= Decoding Errors Path Std =")
-# print(decoding_paths_std_errors)
-# print("= Decoding Errors Path Compressed =")
-# print(decoding_paths_compr_errors)
-# print("= Std Training Errors from real model =")
-# print(ur_model_diff)
-# print("= Compressed Training Errors from real model =")
-# print(cr_model_diff)
-print()

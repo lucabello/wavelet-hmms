@@ -12,7 +12,7 @@ import utilities_io as uio
 automatic = True
 states_file = "data/states"
 trans_prob = 10.0/100000.0 # wanted_trans_n / sequence length = 10/10^6
-topology = "circular"
+topology = "fully-connected"
 
 out_file = open(uio.model_file, "w")
 

@@ -10,13 +10,13 @@
 #include "utils.hpp"
 #include "commons.hpp"
 
-template< typename T>
+template<typename T>
 void MaxletTransform(FILE* fin,
     bool binary,
     vector<real_t>& coeffs,
     vector< SufficientStatistics<T> >& suffstats,
     const size_t nrDim = 1,
-    const size_t reserveT = 0 // an estimate of the number of data points to avoid reallocation
+    const size_t reserveT = 0
 );
 
 /**
@@ -137,35 +137,26 @@ Compressor::Compressor(std::string& f, bool binary){
         stdEstimate = estimateAccum;
 
         HaarBreakpointWeights(mInputValues);
-        mIntegralArray = new Statistics<IntegralArray, Normal>(mStats, nrDataDim);
+        mIntegralArray = new Statistics<IntegralArray,Normal>(mStats,nrDataDim);
         mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
 
-        // std::cout << "stdEstimate: " << stdEstimate << std::endl;
-        //stdEstimate /= nrDetailCoeffs;	// yields mean absolute deviation
-        //std::cout << "stdEstimate: " << stdEstimate << std::endl;
-        // divide by sqrt(2/pi) to get estimate of standard deviation
-        // for normal distribution
-		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315331;
-        // std::cout << "stdEstimate: " << stdEstimate << std::endl;
-        // std::cout << "log(mWaveletBlocks.size()): " << log(mWaveletBlocks->size()) << std::endl;
-        // std::cout << "stdEstimate: " << stdEstimate << std::endl;
-        mThreshold = sqrt(2 * log((real_t)mWaveletBlocks->size()) * stdEstimate);
+		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315;
+        mThreshold = sqrt(2*log((real_t)mWaveletBlocks->size())*stdEstimate);
 
-        //std::cout << "Using this threshold: " << mThreshold << std::endl;
-		mWaveletBlocks->createBlocks(mThreshold); //mThreshold
+		mWaveletBlocks->createBlocks(mThreshold);
 		mWaveletBlocks->initForward();
 		mWaveletBlocks->next();
         mBlocksNumber = 0;
         do {
             mBlocksNumber++;
         } while(mWaveletBlocks->next());
-        // std::cout << "number of blocks: " << mBlocksNumber << std::endl;
         mWaveletBlocks->initForward();
         mWaveletBlocks->next();
     }
     catch(exception& e) {
         std::cout << std::flush;
-		cerr << endl << flush << "[CompressorError] " << e.what()  << endl << flush;
+		cerr << endl << flush << "[CompressorError] ";
+        cerr << e.what()  << endl << flush;
         throw e;
     }
 }
@@ -278,7 +269,8 @@ void Compressor::printAllBlocks(){
 
 /*
 * Overloads the original function in HaMMLET to use C-style file input
-* for efficiency reasons
+* for efficiency reasons. Some comments have been removed to better adapt the
+* formatting to the thesis.
 */
 template< typename T>
 void MaxletTransform(
@@ -287,30 +279,21 @@ void MaxletTransform(
     vector<real_t>& coeffs,
     vector< SufficientStatistics<T> >& suffstats,
     const size_t nrDim = 1,
-    const size_t reserveT = 0	// an estimate of the number of data points to avoid reallocation
+    const size_t reserveT = 0
 ) {
-
 	if ( nrDim <= 0 ) {
 		throw runtime_error( "Number of dimensions must be positive!" );
 	}
-
-
 	if ( coeffs.size() > 0 ) {
 		throw runtime_error( "Coefficient array must be empty!" );
 	}
-
 	if ( suffstats.size() > 0 ) {
 		throw runtime_error( "Statistics array must be empty!" );
 	}
-
 	if ( fin != NULL ) {
-
-
 		coeffs.reserve( ( reserveT + nrDim ) / nrDim + nrDim );
 		suffstats.reserve( reserveT + nrDim );
-
-// 	stack<real_t, vector<real_t> > S;	// stack never gets larger than nrDim*log2(T), so we don't expect a lot of reallocation, and save a lot of push and pop operations due to random access
-		vector<real_t> S;
+        vector<real_t> S;
 		size_t i = 0;
 		real_t v = 0;
 		size_t dim = 0;
@@ -327,45 +310,30 @@ void MaxletTransform(
             v = (real_t)inputNum;
 			S.push_back( v );
 			suffstats.push_back( SufficientStatistics<T>( v ) );
-			dim++;	// set dimension of next value
-			if ( dim == nrDim ) {	// filled all dimensions at index i
-				dim = 0;	// next value will be first dimension again
-
-
+			dim++;
+			if ( dim == nrDim ) {
+				dim = 0;
 				coeffs.push_back( inf );
-
-
-				size_t j = i;	// points to node indices on an upward-left path (i.e. DFS post-order)
-				size_t m = 1;	// mask to determine whether j is an index of a left child
+				size_t j = i;
+				size_t m = 1;
 				real_t normalizer = sqrt2half;
-
-				while ( ( j & m ) > 0 ) {	// while j is on a left-upward path (DFS post-order)
-
-					real_t maxCoeff = 0;	// the maximum detail coefficient across dimensions at j; NOTE we cannot take the maximum with coeffs because it contains infinity
-
-					size_t L = S.size() - 2 * nrDim;	// index of left element in stack, get incremented to iterate over dimensions
-					size_t R = L + nrDim;	// likewise, index of right element in stack
-
-
-					// compute maximum of detail coefficients across dimensions
+				while ( ( j & m ) > 0 ) {
+					real_t maxCoeff = 0;
+					size_t L = S.size() - 2 * nrDim;
+					size_t R = L + nrDim;
 					for ( size_t d = 0; d < nrDim; ++d ) {
-						maxCoeff = max( maxCoeff, normalizer * abs( S[L] - S[R] ) );
-						S[L] += S[R];	// add right values to left values, so only the right values need to be popped
-						L++;		// go to next dimension
+						maxCoeff = max(maxCoeff,normalizer*abs(S[L]-S[R]));
+						S[L] += S[R];
+						L++;
 						R++;
 					}
 					coeffs[j] = maxCoeff;
-
-
-					// pop the right values
 					for ( size_t d = 0; d < nrDim; ++d ) {
 						S.pop_back();
 					}
-
-
-					j = j - m;	// move to left parent (if current position is not a right child, the loop will exit)
-					m *= 2;	// move bit-mask to the left, i.e. check if i is still on a left-up path)
-					normalizer *= sqrt2half;	// moving up one level changes normalization factor
+					j = j - m;
+					m *= 2;
+					normalizer *= sqrt2half;
 				}
 				i++;
 			}
@@ -373,13 +341,15 @@ void MaxletTransform(
                 fileEnd = (fscanf(fin, "%lf", &inputNum) == EOF);
             }
             else {
-                fileEnd = (fread(&inputNum,1,sizeof(double),fin) != sizeof(double));
+                fileEnd = (fread(&inputNum,1,sizeof(double),fin) !=
+                    sizeof(double));
             }
 		}
 
 
 		if ( dim != 0 ) {
-			throw runtime_error( "Input stream did not contain enough values to fill all dimensions at last position!" );
+			throw runtime_error( "Input stream did not contain enough values"
+                "to fill all dimensions at last position!" );
 		}
 
 		coeffs[0] = inf;

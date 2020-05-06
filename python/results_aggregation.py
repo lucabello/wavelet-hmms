@@ -40,7 +40,8 @@ def save_boxplot(data, title, topology, suffix, ybot, ytop):
     fig, ax = plt.subplots(len(n_states), constrained_layout=True)
     for i in range(0, len(n_states)):
         ax[i].set(title=n_states[i]+" states")
-        ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
+        ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+            alpha=0.5)
         ax[i].set_ylim(ybot[i], ytop[i])
         ax[i].set_xticklabels(etas)
         ax[i].boxplot(data[i])
@@ -179,9 +180,11 @@ def plot_training(topology):
             tr_in_diff = []
             f = "tests/" + topology + "_" + n + "_" + eta + "_"
             # read standard training results
-            tr_kl_std, tr_tr_std, tr_in_std = summarize_training(f+f_tr_std)
+            tr_kl_std, tr_tr_std, tr_in_std = summarize_training(f +
+                f_tr_std)
             # read compressed training results
-            tr_kl_compr, tr_tr_compr, tr_in_compr = summarize_training(f+f_tr_compr)
+            tr_kl_compr, tr_tr_compr, tr_in_compr = summarize_training(f +
+                f_tr_compr)
             for i in range(0, len(tr_kl_std)):
                 tr_kl_diff.append(tr_kl_compr[i] - tr_kl_std[i])
             for i in range(0, len(tr_tr_std)):
@@ -201,9 +204,12 @@ def plot_training(topology):
         y_tr_all.append(y_tr)
         y_in_all.append(y_in)
 
-    save_plot(x, y_kl_all, "Training: KL-divergence difference", topology, "training_kl")
-    save_plot(x, y_tr_all, "Training: Transitions relative error difference", topology, "training_tr")
-    save_plot(x, y_in_all, "Training: Initial distribution error difference", topology, "training_in")
+    save_plot(x, y_kl_all, "Training: KL-divergence difference", topology,
+        "training_kl")
+    save_plot(x, y_tr_all, "Training: Transitions relative error difference",
+        topology, "training_tr")
+    save_plot(x, y_in_all, "Training: Initial distribution error difference",
+        topology, "training_in")
 
     # Training KL
     if topology == "CI":
@@ -231,7 +237,7 @@ def plot_training(topology):
     else:
         tmp_ybot = [-0.00000025, -0.000005, -0.00001]
         tmp_ytop = [0.00000005, 0.0000005, 0.0000005]
-    save_boxplot(data=tr_in_list, title="Training: initial distribution error", \
+    save_boxplot(data=tr_in_list, title="Training: initial distribution error",\
         topology=topology, suffix="training_in_boxplot", ybot=tmp_ybot, \
         ytop=tmp_ytop)
 
@@ -257,7 +263,7 @@ def plot_speedup(topology):
                 floatlist_compr = [float(e) for e in list]
                 floatlist_ratio = []
                 for i in range(0, len(floatlist_std)):
-                    floatlist_ratio.append(floatlist_std[i] / floatlist_compr[i])
+                    floatlist_ratio.append(floatlist_std[i]/floatlist_compr[i])
                 speedup.append(floatlist_ratio)
                 y.append(median(floatlist_ratio))
             speedup_list.append(speedup)
@@ -309,5 +315,6 @@ if __name__ == "__main__":
     files = listdir(folder)
     for f in files:
         if "boxplot" not in f and "MERGE" not in f:
-            subprocess.call("convert "+folder+f+" "+folder+f[:-4]+"_boxplot.png +append " + \
+            subprocess.call("convert "+folder+f+" "+folder+f[:-4]+ \
+                "_boxplot.png +append " + \
                 folder+"MERGE_"+f[5:], shell=True)

@@ -46,7 +46,8 @@ State::State(wahmm::real_t mean, wahmm::real_t stdDev) : mMean(mean),
         idCounter++;
     }
 
-State::State(wahmm::real_t mean, wahmm::real_t stdDev, std::string name) : mMean(mean),
+State::State(wahmm::real_t mean, wahmm::real_t stdDev, std::string name) :
+    mMean(mean),
     mStdDev(stdDev),
     mLogStdDev(log(stdDev)),
     mName(name),

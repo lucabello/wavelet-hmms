@@ -108,8 +108,10 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
     if(!silence)
         std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
     if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving evaluation log probability to file " << PATH_OUT << "evaluation_prob ... " << std::flush;
+        if(verbose){
+            std::cout << "[>] Saving evaluation log probability to file ";
+            std::cout << PATH_OUT << "evaluation_prob ... " << std::flush;
+        }
         std::ofstream ofs (PATH_OUT + "evaluation_prob", std::ofstream::out);
         ofs.precision(std::numeric_limits<double>::max_digits10);
         ofs << logEvaluation;
@@ -120,6 +122,7 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs, bool verbose,
 
     freeMatrix(logForward, numberOfStates);
 }
+
 
 /**
 * Solve the decoding problem making use of the forward algorithm.
@@ -218,16 +221,20 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
     }
 
     if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving Viterbi path to file " << PATH_OUT << "decoding_path ... " << std::flush;
+        if(verbose){
+            std::cout << "[>] Saving Viterbi path to file " << PATH_OUT;
+            std::cout << "decoding_path ... " << std::flush;
+        }
         std::ofstream ofsPath (PATH_OUT + "decoding_path", std::ofstream::out);
         for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++)
             ofsPath << *it << " ";
         ofsPath.close();
         if(verbose)
             std::cout << "done." << std::endl;
-        if(verbose)
-            std::cout << "[>] Saving Viterbi log likelihood to file " << PATH_OUT << "decoding_prob ... " << std::flush;
+        if(verbose){
+            std::cout << "[>] Saving Viterbi log likelihood to file ";
+            std::cout << PATH_OUT << "decoding_prob ... " << std::flush;
+         }
         std::ofstream ofsProb (PATH_OUT + "decoding_prob", std::ofstream::out);
         ofsProb.precision(std::numeric_limits<double>::max_digits10);
         ofsProb << currentMax;
@@ -239,6 +246,7 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
     freeMatrix(logViterbi, numberOfStates);
     freeMatrix(statesViterbi, numberOfStates);
 }
+
 
 /**
 * Perform one iteration of the Baum-Welch algorithm.
@@ -262,8 +270,9 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs, bool verbose,
 
 * @returns the logEvaluation P(O|lambda) of the previous model
 */
-wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t minObs,
-    wahmm::real_t **logEpsilon, wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
+wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs,
+    wahmm::real_t minObs, wahmm::real_t **logEpsilon,
+    wahmm::real_t *logBackward, wahmm::real_t *prevLogBackward,
     wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
     wahmm::real_t *logAverage, wahmm::real_t *logVariance){
 
@@ -362,17 +371,20 @@ wahmm::real_t baum_welch_iteration(Model& m, std::vector<wahmm::real_t>& obs, wa
 * a certain threshold.
 * Note that one more iteration than necessary is performed.
 */
-void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t thresh,
-    size_t maxIterations, bool verbose, bool silence, bool tofile){
+void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
+    wahmm::real_t thresh, size_t maxIterations, bool verbose, bool silence,
+    bool tofile){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
-    wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
+    // logBackward only for current t
+    wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *prevLogBackward = new wahmm::real_t[m.mStates.size()];
-    wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()]; // computed at last
+    // logPi computed at last
+    wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t **logGamma;
     wahmm::real_t *logGammaSum = new wahmm::real_t[m.mStates.size()];
-    wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()]; // one for each state
-    wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()]; // one for each state
+    wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()];
+    wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()];
 
     logEpsilon = new wahmm::real_t*[m.mStates.size()];
     logGamma = new wahmm::real_t*[m.mStates.size()];
@@ -404,8 +416,10 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t t
         evaluation = newEvaluation;
         if(verbose){
             std::cout << "[>] Iteration: " << iter << std::endl;
-            std::cout << "[>] Evaluation improvement (log): " << logImprovement << std::endl;
-            std::cout << "[>] New P(O | lambda): " << newEvaluation << std::endl;
+            std::cout << "[>] Evaluation improvement (log): ";
+            std::cout << logImprovement << std::endl;
+            std::cout << "[>] New P(O | lambda): " << newEvaluation;
+            std::cout << std::endl;
             m.printModel();
         }
     }
@@ -417,7 +431,8 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs, wahmm::real_t t
     if(tofile){
         m.sortModel();
         if(verbose)
-            std::cout << "[>] Saving trained model to file " << PATH_OUT << "training_model ... " << std::flush;
+            std::cout << "[>] Saving trained model to file " << PATH_OUT;
+            std::cout << "training_model ... " << std::flush;
         std::ofstream modelFileOutput(PATH_OUT + "training_model");
         if(modelFileOutput.is_open()){
             modelFileOutput << m;

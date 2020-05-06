@@ -40,7 +40,8 @@ if output_path:
     observations = samples[0]
     state_path = samples[1]
 else:
-    samples = model.sample(length=sequence_length, path=False, random_state=None)
+    samples = model.sample(length=sequence_length, path=False,
+        random_state=None)
     observations = samples
 
 if output_readable:

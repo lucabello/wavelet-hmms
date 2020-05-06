@@ -33,7 +33,7 @@ void freeMatrix(wahmm::real_t** m, size_t rows){
 
 /** Compute K(n_w,j) */
 wahmm::real_t compute_k(Model& m, size_t j, size_t nw){
-    const wahmm::real_t log_2pi = 1.83787706640934548356065947281123527972279494727;
+    const wahmm::real_t log_2pi = 1.8378770664093454835606594728112352797227949;
     const wahmm::real_t log_2pi_over2 = log_2pi/2;
 
     if(m.mKValues.count(nw) != 0){
@@ -53,15 +53,6 @@ wahmm::real_t compute_k(Model& m, size_t j, size_t nw){
     return m.mKValues.find(nw)->second.at(j);
 
 }
-
-/** Compute E_w(j) with expanded params
-wahmm::real_t compute_e(Model& m, size_t j, size_t nw, wahmm::real_t sigma1,
-    wahmm::real_t sigma2){
-    wahmm::real_t num = 2*m.mStates[j].mean()*sigma1 - sigma2;
-    wahmm::real_t den = 2*pow(m.mStates[j].stdDev(),2);
-    return (num/den) + compute_k(m, j, nw);
-}
-*/
 
 /** Compute E_w(j) */
 wahmm::real_t compute_e(Model& m, size_t j, blockdata bd){

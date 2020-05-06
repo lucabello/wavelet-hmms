@@ -44,7 +44,8 @@ int main(int argc, const char* argv[]){
     }
     else { // read the model from command line
         if(result.count("state")){
-            std::vector<double> stateParams = result["state"].as<std::vector<double>>();
+            std::vector<double> stateParams = result["state"]
+                .as<std::vector<double>>();
             wahmm::real_t mean, stdDev;
             for(std::size_t i = 0; i < result.count("state"); i++){
                 mean = stateParams[i*2];
@@ -53,12 +54,14 @@ int main(int argc, const char* argv[]){
             }
         }
         if(result.count("transitions")){
-            std::vector<double> transParams = result["transitions"].as<std::vector<double>>();
+            std::vector<double> transParams = result["transitions"]
+                .as<std::vector<double>>();
             for(double d : transParams)
                 relTrans.push_back((wahmm::real_t)d);
         }
         if(result.count("initial")){
-            std::vector<double> logParams = result["initial"].as<std::vector<double>>();
+            std::vector<double> logParams = result["initial"]
+                .as<std::vector<double>>();
             for(double d : logParams)
                 relPi.push_back((wahmm::real_t)d);
         }
@@ -103,15 +106,18 @@ int main(int argc, const char* argv[]){
         return -1;
     }
     if(states.size()*states.size() != relTrans.size()){
-        std::cerr << "[Error] Wrong number of transition probabilities" << std::endl;
+        std::cerr << "[Error] Wrong number of transition probabilities";
+        std::cerr << std::endl;
         return -1;
     }
     if(fileObs.empty()){
-        std::cerr << "[Error] Input file for observations not specified" << std::endl;
+        std::cerr << "[Error] Input file for observations not specified";
+        std::cerr << std::endl;
         return -1;
     }
     if(silence == true && verbose == true){
-        std::cerr << "[Error] Silence and Verbose flags cannot be used together" << std::endl;
+        std::cerr << "[Error] Silence + Verbose flags cannot be used together";
+        std::cerr << std::endl;
         return -1;
     }
     // read observations
@@ -135,8 +141,10 @@ int main(int argc, const char* argv[]){
                 std::cout << "[>] ... done." << std::endl;
         }
         else {
-            if(verbose)
-                std::cout << "[>] Reading observations from binary file... " << std::endl;
+            if(verbose){
+                std::cout << "[>] Reading observations from binary file... ";
+                std::cout << std::endl;
+            }
             finObs = fopen ( fileObs.c_str() , "rb" );
             if (finObs==NULL){
                 std::cerr << "Cannot read file " + fileObs + " !" << std::endl;

@@ -34,7 +34,8 @@ parse(int argc, char* argv[])
 {
   try
   {
-    cxxopts::Options options(argv[0], "WaHMM - *Wa*velets on *H*idden *M*arkov *M*odels");
+    cxxopts::Options options(argv[0], "WaHMM - *Wa*velets on *H*idden *M*arkov"
+        " *M*odels");
 
     bool apple = false;
 

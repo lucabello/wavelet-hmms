@@ -34,7 +34,8 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
             logForward[j][blockCounter] = -infin;
             for(int i = 0; i < numberOfStates; i++){ // starting state
                 // alpha_W(j) = sum_{i=0}^N alpha_{w-1}(i)a_{ij} ...
-                logForward[j][blockCounter] = sum_logarithms(logForward[j][blockCounter],
+                logForward[j][blockCounter] = sum_logarithms(
+                    logForward[j][blockCounter],
                     logForward[i][blockCounter-1] + m.mLogTransitions[i][j]);
             }
             // ... E_w(j)
@@ -46,6 +47,7 @@ wahmm::real_t** forward_matrix_compressed(Model& m, Compressor *c){
 
     return logForward;
 }
+
 
 /**
 * Compute the compressed backward matrix given a model and a Compressor holding
@@ -74,7 +76,8 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
             logBackward[i][blockCounter] = -infin;
             for(size_t j = 0; j < numberOfStates; j++){ // starting state
                 // beta_t(i) = sum_{j=1}^N a_{ij} b_j(O_{t+1}) beta_{t+1}(j)
-                logBackward[i][blockCounter] = sum_logarithms(logBackward[i][blockCounter],
+                logBackward[i][blockCounter] = sum_logarithms(
+                    logBackward[i][blockCounter],
                     m.mLogTransitions[i][j] +
                     compute_e(m, j, c->reverseBlockData()) +
                     logBackward[j][blockCounter+1]);
@@ -87,6 +90,7 @@ wahmm::real_t** backward_matrix_compressed(Model& m, Compressor *c){
 
     return logBackward;
 }
+
 
 /**
 * Solve the evaluation problem through a compressed version of the forward
@@ -107,7 +111,7 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool silence,
     if(!silence)
         std::cout << "[>] +++ Compressed Evaluation Problem +++" << std::endl;
 
-    logForward = forward_matrix_compressed(m, c); // initialization and induction
+    logForward = forward_matrix_compressed(m, c); //initialization and induction
     // termination
     logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
@@ -123,9 +127,13 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool silence,
     if(!silence)
         std::cout << "[>] log[ P(O|lambda) ]: " << logEvaluation << std::endl;
     if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving compressed evaluation log probability to file " << PATH_OUT << "compressed_evaluation_prob ... " << std::flush;
-        std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob", std::ofstream::out);
+        if(verbose){
+            std::cout << "[>] Saving compressed evaluation log probability";
+            std::cout << " to file " << PATH_OUT;
+            std::cout << "compressed_evaluation_prob ... " << std::flush;
+        }
+        std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob",
+            std::ofstream::out);
         ofs.precision(std::numeric_limits<double>::max_digits10);
         ofs << logEvaluation;
         ofs.close();
@@ -135,6 +143,7 @@ void evaluation_compressed(Model& m, Compressor *c, bool verbose, bool silence,
 
     freeMatrix(logForward, numberOfStates);
 }
+
 
 /**
 * Solve the decoding problem making use of the compressed version of the
@@ -177,14 +186,16 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
             logViterbi[j][blockCounter] = -infin;
             // delta_t(j) = max_{1<=i<=N} delta_{t-1}(i)a_{ij} ...
             for(size_t i = 0; i < numberOfStates; i++){ // starting state
-                currentSum = logViterbi[i][blockCounter-1] + m.mLogTransitions[i][j];
+                currentSum = logViterbi[i][blockCounter-1] +
+                    m.mLogTransitions[i][j];
                 if(currentSum > currentMax){
                     currentMax = currentSum;
                     currentState = i;
                 }
             }
             // ... e^(E_w(j))
-            logViterbi[j][blockCounter] = currentMax + compute_e(m, j, c->blockData());
+            logViterbi[j][blockCounter] = currentMax +
+                compute_e(m, j, c->blockData());
             // psi_t(j) = argmax[...]
             statesViterbi[j][blockCounter] = currentState;
             // re-initialize max variables for next loop
@@ -241,9 +252,13 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     }
 
     if(tofile){
-        if(verbose)
-            std::cout << "[>] Saving compressed Viterbi path to file " << PATH_OUT << "compressed_decoding_path ..." << std::flush;
-        std::ofstream ofsPath (PATH_OUT + "compressed_decoding_path", std::ofstream::out);
+        if(verbose){
+            std::cout << "[>] Saving compressed Viterbi path to file ";
+            std::cout << PATH_OUT << "compressed_decoding_path ...";
+            std::cout << std::flush;
+        }
+        std::ofstream ofsPath (PATH_OUT + "compressed_decoding_path",
+            std::ofstream::out);
         size_t lenIndex = 0;
         for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++){
             for(size_t blen = 0; blen < blockLengths[lenIndex]; blen++){
@@ -254,15 +269,18 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
         ofsPath.close();
         if(verbose)
             std::cout << "done." << std::endl;
-        if(verbose)
-            std::cout << "[>] Saving compressed Viterbi log likelihood to file " << PATH_OUT << "compressed_decoding_prob ... " << std::flush;
-        std::ofstream ofsProb (PATH_OUT + "compressed_decoding_prob", std::ofstream::out);
+        if(verbose){
+            std::cout << "[>] Saving compressed Viterbi log likelihood";
+            std::cout << " to file " << PATH_OUT;
+            std::cout << "compressed_decoding_prob ... " << std::flush;
+        }
+        std::ofstream ofsProb (PATH_OUT + "compressed_decoding_prob",
+            std::ofstream::out);
         ofsProb.precision(std::numeric_limits<double>::max_digits10);
         ofsProb << currentMax;
         ofsProb.close();
         if(verbose)
             std::cout << "done." << std::endl;
-
     }
 
     c->initForward();
@@ -270,6 +288,7 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
     freeMatrix(logViterbi, numberOfStates);
     freeMatrix(statesViterbi, numberOfStates);
 }
+
 
 /**
 * Perform one iteration of a compressed version of the Baum-Welch algorithm.
@@ -283,11 +302,10 @@ void decoding_compressed(Model &m, Compressor *c, bool verbose, bool silence,
 *
 * @returns the logEvaluation P(O|lambda) of the previous model
 */
-wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::real_t minSum,
-    wahmm::real_t **logEpsilon,
-    wahmm::real_t *logPi, wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
-    wahmm::real_t *logTrDen,
-    wahmm::real_t *logAverage, wahmm::real_t *logVariance){
+wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c,
+    wahmm::real_t minSum, wahmm::real_t **logEpsilon, wahmm::real_t *logPi,
+    wahmm::real_t **logGamma, wahmm::real_t *logGammaSum,
+    wahmm::real_t *logTrDen, wahmm::real_t *average, wahmm::real_t *variance){
 
     wahmm::real_t logEvaluation; // P(O|lambda)
     wahmm::real_t **logForward; // forward matrix
@@ -299,10 +317,7 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
         for(size_t j = 0; j < numberOfStates; j++)
             logEpsilon[i][j] = -infin;
         logGammaSum[i] = -infin;
-        logAverage[i] = -infin;
-        logVariance[i] = -infin;
     }
-
     logForward = forward_matrix_compressed(m, c);
     logEvaluation = -infin;
     for(size_t i = 0; i < numberOfStates; i++){
@@ -364,21 +379,22 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
             logEpsilon[i][j] -= logGammaSum[i];
         }
         c->initForward();
-        logAverage[i] = 0;
+        average[i] = 0;
         wahmm::real_t v;
         for(int b = 0; b < nBlocks; b++){
             currentBd = c->blockData();
             v = currentBd.s1;
-            logAverage[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
+            average[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
             c->next();
         }
         c->initForward();
-        logVariance[i] = 0;
+        variance[i] = 0;
         for(int b = 0; b < nBlocks; b++){
             currentBd = c->blockData();
             //v can sometimes have some numerical issues caused by HaMMLET code
-            v = currentBd.s2 - 2*logAverage[i]*currentBd.s1 + currentBd.nw*logAverage[i]*logAverage[i];
-            logVariance[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
+            v = currentBd.s2 - 2*average[i]*currentBd.s1 +
+                currentBd.nw*average[i]*average[i];
+            variance[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
             c->next();
         }
     }
@@ -389,8 +405,8 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
         for(size_t j = 0; j < numberOfStates; j++){
             m.mLogTransitions[i][j] = logEpsilon[i][j];
         }
-        m.mStates[i].updateParameters(logAverage[i],
-            sqrt(logVariance[i]));
+        m.mStates[i].updateParameters(average[i],
+            sqrt(variance[i]));
     }
     //drop KValues matrix
     m.mKValues.clear();
@@ -400,6 +416,7 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c, wahmm::re
 
     return logEvaluation;
 }
+
 
 /**
 * Solve the training problem by performing more iterations of a compressed
@@ -412,14 +429,14 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     size_t maxIterations, bool verbose, bool silence, bool tofile){
 
     wahmm::real_t **logEpsilon; // eps_t(i,j), accumulator over all t
-    wahmm::real_t *logBackward = new wahmm::real_t[m.mStates.size()]; // only current t
-    wahmm::real_t *prevLogBackward = new wahmm::real_t[m.mStates.size()];
-    wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()]; // computed at last
+    // logPi is computed at last
+    wahmm::real_t *logPi = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t **logGamma;
     wahmm::real_t *logTrDen = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *logGammaSum = new wahmm::real_t[m.mStates.size()];
-    wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()]; // one for each state
-    wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()]; // one for each state
+    // both average and variance arrays have one element for each state
+    wahmm::real_t *average = new wahmm::real_t[m.mStates.size()];
+    wahmm::real_t *variance = new wahmm::real_t[m.mStates.size()];
 
     logEpsilon = new wahmm::real_t*[m.mStates.size()];
     logGamma = new wahmm::real_t*[m.mStates.size()];
@@ -436,7 +453,6 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
             minSum = c->blockData().s1;
     } while(c->next());
     c->initForward();
-    // std::cout << "minSum: " << minSum << std::endl;
     minSum -= 1; // to avoid crash when 0 is saves as -0.0000000001
     wahmm::real_t evaluation=-infin, newEvaluation=-infin;
     wahmm::real_t logImprovement = thresh + 1;
@@ -448,13 +464,15 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     for(iter = 0; iter < maxIterations && logImprovement > thresh; iter++){
         newEvaluation = compressed_baum_welch_iteration(m, c, minSum,
             logEpsilon, logPi, logGamma,
-            logGammaSum, logTrDen, logAverage, logVariance);
+            logGammaSum, logTrDen, average, variance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
         if(verbose){
             std::cout << "[>] Iteration: " << iter << std::endl;
-            std::cout << "[>] Evaluation improvement (log): " << logImprovement << std::endl;
-            std::cout << "[>] New P(O | lambda): " << newEvaluation << std::endl;
+            std::cout << "[>] Evaluation improvement (log): ";
+            std::cout << logImprovement << std::endl;
+            std::cout << "[>] New P(O | lambda): ";
+            std::cout << newEvaluation << std::endl;
             m.printModel();
         }
     }
@@ -465,8 +483,10 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
 
     if(tofile){
         m.sortModel();
-        if(verbose)
-            std::cout << "[>] Saving trained model to file " << PATH_OUT << "training_model ... " << std::flush;
+        if(verbose){
+            std::cout << "[>] Saving trained model to file " << PATH_OUT;
+            std::cout << "training_model ... " << std::flush;
+        }
         std::ofstream modelFileOutput(PATH_OUT + "compressed_training_model");
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
@@ -479,12 +499,10 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     // free variables
     freeMatrix(logEpsilon, m.mStates.size());
     freeMatrix(logGamma, m.mStates.size());
-    delete[] logBackward;
-    delete[] prevLogBackward;
     delete[] logPi;
     delete[] logGammaSum;
-    delete[] logAverage;
-    delete[] logVariance;
+    delete[] average;
+    delete[] variance;
 }
 
 

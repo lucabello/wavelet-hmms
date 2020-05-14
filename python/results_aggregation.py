@@ -34,7 +34,7 @@ f_tr_std_t = "training_std_time"
 f_tr_compr_t = "training_compr_time"
 
 
-def save_boxplot(data, title, topology, suffix, ybot, ytop):
+def save_boxplot(data, title, topology, suffix, ybot, ytop, ylabel, xlabel):
     f = base_savename + topology + "_" + suffix
     plt.title(title)
     fig, ax = plt.subplots(len(n_states), constrained_layout=True)
@@ -47,19 +47,23 @@ def save_boxplot(data, title, topology, suffix, ybot, ytop):
         ax[i].boxplot(data[i])
         # plt.figure(figsize=(2,1))
         # plt.tight_layout()
+        ax[i].set_xlabel(xlabel)
+        ax[i].set_ylabel(ylabel)
     plt.savefig(f)
     plt.close()
     plt.clf()
 
 
-def save_plot(x, y_allstates, title, topology, suffix, legendLoc='upper right'):
+def save_plot(x, y_allstates, title, topology, suffix, ylabel, xlabel):
     f = base_savename + topology + "_" + suffix
     line_styles = ['-', '--', ':']
     for i in range(0, len(n_states)):
         plt.title(title)
         plt.plot(x, y_allstates[i], label=n_states[i]+" states", \
             linestyle=line_styles[i], marker="o")
-        plt.legend(loc=legendLoc, frameon=False)
+        plt.legend(loc='upper right', frameon=False)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.savefig(f)
     plt.close()
     plt.clf()
@@ -80,7 +84,7 @@ def plot_evaluation(topology):
         ev_list.append(ev)
         y_all.append(y)
     save_plot(x, y_all, "Evaluation: probability relative error", topology, \
-        "evaluation")
+        "evaluation", "Error (relative)", "State separation")
     if topology == "LR":
         tmp_ybot = [0.0,0.0,0.0]
         tmp_ytop = [0.0005, 0.0005, 0.001]
@@ -89,7 +93,7 @@ def plot_evaluation(topology):
         tmp_ytop = [0.003, 0.003, 0.003]
     save_boxplot(data=ev_list, title="Evaluation: probability error", \
         topology=topology, suffix="evaluation_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop)
+        ytop=tmp_ytop, ylabel="Error (relative)", xlabel="State separation")
 
 
 def plot_decoding(topology):
@@ -112,7 +116,7 @@ def plot_decoding(topology):
         de_list.append(de)
         y_all.append(y)
     save_plot(x, y_all, "Decoding: relative path error", topology, \
-        "decoding")
+        "decoding", "Error (relative)", "State separation")
     if topology == "LR":
         tmp_ybot = [0.0,0.0,0.0]
         tmp_ytop = [0.001, 0.001, 0.001]
@@ -121,7 +125,7 @@ def plot_decoding(topology):
         tmp_ytop = [0.001, 0.001, 0.001]
     save_boxplot(data=de_list, title="Decoding: path error increment", \
         topology=topology, suffix="decoding_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop)
+        ytop=tmp_ytop, ylabel="Error (relative)", xlabel="State separation")
 
 
 def summarize_training(filename):
@@ -205,11 +209,11 @@ def plot_training(topology):
         y_in_all.append(y_in)
 
     save_plot(x, y_kl_all, "Training: KL-divergence difference", topology,
-        "training_kl")
+        "training_kl", "Difference (abs)", "State separation")
     save_plot(x, y_tr_all, "Training: Transitions relative error difference",
-        topology, "training_tr")
+        topology, "training_tr", "Difference (abs)", "State separation")
     save_plot(x, y_in_all, "Training: Initial distribution error difference",
-        topology, "training_in")
+        topology, "training_in", "Difference (abs)", "State separation")
 
     # Training KL
     if topology == "CI":
@@ -223,13 +227,15 @@ def plot_training(topology):
         tmp_ytop = [0.05, 8, 10]
     save_boxplot(data=tr_kl_list, title="Training: states error", \
         topology=topology, suffix="training_kl_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop)
+        ytop=tmp_ytop, ylabel="Difference (abs)", \
+        xlabel="State separation")
     # Training TR
     tmp_ybot = [-0.5, -0.5, -0.5]
     tmp_ytop = [0.5, 0.5, 0.5]
     save_boxplot(data=tr_tr_list, title="Training: transitions error", \
         topology=topology, suffix="training_tr_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop)
+        ytop=tmp_ytop, ylabel="Difference (abs)", \
+        xlabel="State separation")
     # Training IN
     if topology == "LR":
         tmp_ybot = [-0.000011, -0.000011, -0.000011]
@@ -239,7 +245,8 @@ def plot_training(topology):
         tmp_ytop = [0.00000005, 0.0000005, 0.0000005]
     save_boxplot(data=tr_in_list, title="Training: initial distribution error",\
         topology=topology, suffix="training_in_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop)
+        ytop=tmp_ytop, ylabel="Difference (abs)", \
+        xlabel="State separation")
 
 
 def plot_speedup(topology):
@@ -268,7 +275,8 @@ def plot_speedup(topology):
                 y.append(median(floatlist_ratio))
             speedup_list.append(speedup)
             y_all.append(y)
-        save_plot(x, y_all, "Speedup: "+p, topology, "speedup_"+p)
+        save_plot(x, y_all, "Speedup: "+p, topology, "speedup_"+p, \
+            "Speedup", "State separation")
         if topology == "CI":
             if p == "evaluation":
                 tmp_ybot = [0.0, 0.5, 1.0]
@@ -301,7 +309,8 @@ def plot_speedup(topology):
                 tmp_ytop = [400, 700, 1700]
         save_boxplot(data=speedup_list, title="Speedup: "+p, \
             topology=topology, suffix="speedup_"+p+"_boxplot", ybot=tmp_ybot, \
-            ytop=tmp_ytop)
+            ytop=tmp_ytop, ylabel="Speedup", \
+            xlabel="State separation")
 
 if __name__ == "__main__":
     # produce plots

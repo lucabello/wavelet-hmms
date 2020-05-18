@@ -5,6 +5,7 @@ import utilities_io as uio
 from math import sqrt
 import sys
 from os import listdir
+import os
 import subprocess
 import matplotlib.pyplot as plt
 from statistics import median, pstdev
@@ -313,6 +314,8 @@ def plot_speedup(topology):
             xlabel="State separation")
 
 if __name__ == "__main__":
+    # create folder if it doesnt exist
+    os.makedirs(os.path.dirname(folder), exist_ok=True)
     # produce plots
     for topology in topologies:
         f = base_savename + topology + "_"

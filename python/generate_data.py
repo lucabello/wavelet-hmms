@@ -4,18 +4,24 @@ import pomegranate as pm
 import numpy as np
 import utilities_io as uio
 import utilities_kmeans as ukm
+import sys
 
 # OPTIONS
-# Lenght of the observations sequence
-sequence_length = 100000
 # Choose if kmeans should be performed or not
 perform_kmeans = True
 # Write the sequence to a binary file
 output_binary = True
 # Write the sequence1  in a human readable format
-output_readable = True
+output_readable = False
 # Also produce a file for the generating path (always human readable)
 output_path = True
+
+
+if len(sys.argv) != 2:
+    print("Error. Please execute as: generate_data.py <sequence_length>")
+    exit(1)
+# Lenght of the observations sequence
+sequence_length = int(sys.argv[1])
 
 # read model from input file
 n_states, means, std_devs, transitions, initial = uio.read_model()

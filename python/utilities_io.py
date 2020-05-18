@@ -14,6 +14,7 @@ observations_file = "data/observations"
 bin_observations_file = "data/bin_observations"
 state_path_file = "data/path"
 model_file = "data/model"
+states_file = "data/states"
 tests_folder = "tests/"
 
 # Observations are a series of floats on a single line separated by spaces
@@ -117,3 +118,76 @@ def read_file_to_list(f):
     list = in_file.read().split()
     in_file.close()
     return list
+
+
+# Create model file
+# The file should be written with the following format:
+# n_states mean std_dev ... log(transitions) ... log(initial_distribution) ...
+def create_model_file(self_trans_prob, topology, \
+    f_states=states_file, f_model=model_file):
+    in_file = open(f_states, "r")
+    line = in_file.read()
+    string_list = line.split()
+    in_file.close()
+    
+    # number of states
+    n_states = len(string_list)
+    out_file = open(f_model, "w")
+    out_file.write(str(n_states) + " ")
+    # states distribution (mean, std_dev)
+    for i in range(0, n_states):
+        out_file.write(string_list[i] + " 1 ")
+    if topology == "FC": # fully-connected
+        # transition matrix
+        out_trans_prob = (1 - self_trans_prob) / (n_states - 1)
+        for i in range(0, n_states):
+            for j in range(0, n_states):
+                if i == j:
+                    out_file.write(str(log(self_trans_prob)) + " ")
+                else:
+                    out_file.write(str(log(out_trans_prob)) + " ")
+        # initial distribution
+        out_file.write(str(log(1)) + " ")
+        for i in range(1, n_states):
+            out_file.write("-inf ")
+    if topology == "LR": # left-to-right
+        # transition matrix
+        out_trans_prob = 1 - self_trans_prob
+        for i in range(0, n_states):
+            for j in range(0, n_states):
+                # last state is absorbing
+                if i == j and i == n_states-1:
+                    out_file.write(str(log(1)) + " ")
+                # self-transition
+                elif i == j:
+                    out_file.write(str(log(self_trans_prob)) + " ")
+                # transition out
+                elif i == j-1:
+                    out_file.write(str(log(out_trans_prob)) + " ")
+                else:
+                    out_file.write("-inf ")
+        # initial distribution
+        out_file.write(str(log(1)) + " ")
+        for i in range(1, n_states):
+            out_file.write("-inf ")
+    if topology == "CI": # circular
+        # transition matrix
+        out_trans_prob = 1 - self_trans_prob
+        for i in range(0, n_states):
+            for j in range(0, n_states):
+                # last state
+                if j == 0 and i == n_states-1:
+                    out_file.write(str(log(out_trans_prob)) + " ")
+                # self-transition
+                elif i == j:
+                    out_file.write(str(log(self_trans_prob)) + " ")
+                # transition out
+                elif j == i+1:
+                    out_file.write(str(log(out_trans_prob)) + " ")
+                else:
+                    out_file.write("-inf ")
+        # initial distribution
+        out_file.write(str(log(1)) + " ")
+        for i in range(1, n_states):
+            out_file.write("-inf ")
+    out_file.close()

@@ -8,6 +8,17 @@ from math import exp, log, isnan
 import numpy as np
 import time
 
+# OPTIONS
+topology_prefix = "FC"
+states = [2, 3, 5]
+etas = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+n_transitions = 10
+sequence_length = 100000
+n_tests = 100
+
+verbose = False
+
+
 # helper functions
 # using a relative difference
 def compute_error(real, measured):
@@ -35,17 +46,7 @@ def savetofile(suffix, list):
         out_file.write(str(list[i]) + " ")
     out_file.close()
 
-# OPTIONS
-topology = "fully-connected" # not used yet
-# states = [2, 3, 5, 7, 11, 13]
-states = [2, 3, 5]
-# etas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-etas = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
-n_tests = 100
-sequence_length = 1000000 # used ONLY to calculate relative errors in decoding
-topology_prefix = "FC"
-verbose = True
 f_eval_prob = "results/evaluation_prob"
 f_compr_eval_prob = "results/compressed_evaluation_prob"
 f_decod_prob = "results/decoding_prob"
@@ -68,8 +69,7 @@ f_train_compr_out = "training_compr"
 f_train_time_std_out = "training_std_time"
 f_train_time_compr_out = "training_compr_time"
 # SCRIPTS PATHS
-f_generate_states = "python/generate_states.py"
-f_generate_model = "python/create_model_file.py"
+f_generate_model = "python/generate_model.py"
 f_generate_data = "python/generate_data.py"
 f_wahmm = "bin/WaHMM"
 # MAIN PROGRAM ARGUMENTS
@@ -101,6 +101,7 @@ train_compr_args.append("--compressed")
 
 if verbose:
     print("=== WaHMM AUTOMATED TESTING ===")
+    print("topology:",topology_prefix)
     print("eta:",etas," #states:",states," #tests:",n_tests)
 
 skip_index = 0
@@ -110,14 +111,10 @@ for eta in etas:
     for n_states in states:
         print("[Test] --- Model with",n_states,"states ---")
         if verbose:
-            print("[Test] Generating states... ",end="",flush=True)
-        arguments = [f_generate_states, str(eta), str(n_states)]
-        subprocess.call(arguments)
-        if verbose:
-            print("done.",flush=True)
-        if verbose:
             print("[Test] Generating model... ",end="",flush=True)
-        subprocess.call(f_generate_model)
+        arguments = [f_generate_model, str(eta), str(n_states), \
+            str(1 - (n_transitions / sequence_length)), topology_prefix]
+        subprocess.call(arguments)
         if verbose:
             print("done.",flush=True)
 
@@ -137,11 +134,13 @@ for eta in etas:
         training_times_std = []
         training_times_compr = []
         for iteration in range(1, n_tests+1):
+            print("[Test",test_count,"] Started.")
             # Step 1: data generation
             if verbose:
                 print("[Test",test_count,"] Generating data... ",end="",
                     flush=True)
-            subprocess.call(f_generate_data)
+            arguments = [f_generate_data, str(sequence_length)]
+            subprocess.call(arguments)
             if verbose:
                 print("done.",flush=True)
 
@@ -222,13 +221,13 @@ for eta in etas:
                 print("[Test",test_count,"] Relative Error:",
                     decod_relative_error)
             decoding_errors.append(decod_relative_error)
-            path_errors = viterbi_comparison.count_differences_uncompressed() /
+            path_errors = viterbi_comparison.count_differences_uncompressed()/ \
                 sequence_length
             if verbose:
                 print("[Test",test_count,"] Fraction of errors in path for "
                     "uncompressed:", path_errors)
             decoding_paths_std_errors.append(path_errors)
-            path_errors = viterbi_comparison.count_differences_compressed() /
+            path_errors = viterbi_comparison.count_differences_compressed()/ \
                 sequence_length
             if verbose:
                 print("[Test",test_count,"] Fraction of errors in path for "
@@ -258,11 +257,11 @@ for eta in etas:
                     "finished.")
 
             # r stands for "real", u for "uncompressed" and c for "compressed"
-            r_nstates, r_means, r_stddevs, r_trans, r_init = uio
+            r_nstates, r_means, r_stddevs, r_trans, r_init = uio \
                 .read_model()
-            u_nstates, u_means, u_stddevs, u_trans, u_init = uio
+            u_nstates, u_means, u_stddevs, u_trans, u_init = uio \
                 .read_model(f_train_mod)
-            c_nstates, c_means, c_stddevs, c_trans, c_init = uio
+            c_nstates, c_means, c_stddevs, c_trans, c_init = uio \
                 .read_model(f_compr_train_mod)
 
             ur_diff = []
@@ -296,7 +295,7 @@ for eta in etas:
 
 
         # Save testing results to file
-        prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" +
+        prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" + \
             str(eta) + "_"
         print("[Test] Saving files with prefix:",prefix)
         # Evaluation

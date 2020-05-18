@@ -430,9 +430,10 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
 
     if(tofile){
         m.sortModel();
-        if(verbose)
+        if(verbose){
             std::cout << "[>] Saving trained model to file " << PATH_OUT;
             std::cout << "training_model ... " << std::flush;
+        }
         std::ofstream modelFileOutput(PATH_OUT + "training_model");
         if(modelFileOutput.is_open()){
             modelFileOutput << m;

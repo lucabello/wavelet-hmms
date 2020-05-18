@@ -2,6 +2,7 @@
 #define WAHMM_COMMONS_HPP
 
 #define PATH_OUT std::string("results/")
+#define MIN_VARIANCE 0.01
 
 #include <cstdint>
 

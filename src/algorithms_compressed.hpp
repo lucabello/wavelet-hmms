@@ -397,6 +397,12 @@ wahmm::real_t compressed_baum_welch_iteration(Model& m, Compressor *c,
             variance[i] += exp(logGamma[i][b]-logGammaSum[i]) * v;
             c->next();
         }
+        //variance sometimes gets to 0 due to the numerical issues of v, above;
+        // one state always has variance 1, so MIN_VARIANCE should be compared
+        // to that
+        if(variance[i] < MIN_VARIANCE){
+            variance[i] = MIN_VARIANCE;
+        }
     }
 
     //update model

@@ -1,10 +1,16 @@
 """
 Functions in this file:
 def read_observations(f=observations_file, limit=0):
+def write_observations(observations, f=observations_file):
 def read_observations_binary(f=bin_observations_file):
+def write_observations_binary(observations, f=bin_observations_file):
 def read_path(f=state_path_file, limit=0):
+def write_path(state_path, f=state_path_file):
 def read_model(f=model_file):
-def read_kmeans_model(f=kmeans_model_file):
+def write_list(f, l):
+def read_file_to_list(f):
+def create_model_file(self_trans_prob, topology,
+    f_states=states_file, f_model=model_file):
 """
 import numpy as np
 from math import sqrt, log, exp
@@ -129,7 +135,7 @@ def create_model_file(self_trans_prob, topology, \
     line = in_file.read()
     string_list = line.split()
     in_file.close()
-    
+
     # number of states
     n_states = len(string_list)
     out_file = open(f_model, "w")

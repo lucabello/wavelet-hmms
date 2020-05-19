@@ -104,7 +104,6 @@ if verbose:
     print("topology:",topology_prefix)
     print("eta:",etas," #states:",states," #tests:",n_tests)
 
-skip_index = 0
 test_count = 1
 for eta in etas:
     print("[Test] --- Using Eta:",eta,"---")

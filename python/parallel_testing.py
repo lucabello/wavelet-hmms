@@ -11,7 +11,6 @@ etas = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
 
 # Function to deploy tests
 def test(params):
-    print(params)
     topology = params[0]
     n_states = params[1]
     eta = params[2]
@@ -24,7 +23,7 @@ def test(params):
 
 # configuration
 t = topologies[0]
-s = 10
+s = 2
 configuration = []
 for eta in etas:
     configuration.append([t, s, eta])

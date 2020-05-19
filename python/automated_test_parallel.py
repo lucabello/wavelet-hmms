@@ -30,7 +30,7 @@ eta = float(sys.argv[3])
 topology_prefix = topology
 n_transitions = 10
 sequence_length = 100000
-n_tests = 100
+n_tests = 4
 
 verbose = False
 
@@ -54,12 +54,10 @@ def kl_divergence_gaussians(m0, s0, m1, s1):
     b = (s0**2 + (m0-m1)**2)/(2*(s1**2))
     return a + b - 0.5
 
-def savetofile(suffix, list):
-    n = len(list)
+def appendtofile(suffix, value):
     f = prefix + suffix
-    out_file = open(f, "w")
-    for i in range(0, n):
-        out_file.write(str(list[i]) + " ")
+    out_file = open(f, "a+")
+    out_file.write(str(value) + " ")
     out_file.close()
 
 
@@ -118,20 +116,27 @@ train_compr_args.append("--compressed")
 if verbose:
     print("=== WaHMM AUTOMATED TESTING ===")
     print("topology:",topology_prefix)
-    print("eta:",etas," #states:",states," #tests:",n_tests)
+    print("eta:",eta," #states:",state," #tests:",n_tests)
 
-skip_index = 0
-test_count = 1
-print("[Test] --- Using Eta:",eta,"---")
-print("[Test] --- Model with",n_states,"states ---")
+
+# print("[Test] --- Using Eta:",eta,"---")
+# print("[Test] --- Model with",n_states,"states ---")
 # operate in a specific folder to avoid overlap with other processes
-base_folder = "tests/"+topology_prefix+"_"+ str(n_states)+"_"+ \
+base_folder = "tests/"+topology_prefix+"_"+str(n_states)+"_"+ \
     str(eta)+"/"
 os.makedirs(os.path.dirname(base_folder), exist_ok=True)
 os.chdir(os.path.dirname(base_folder))
 os.makedirs(os.path.dirname("data/"), exist_ok=True)
 os.makedirs(os.path.dirname("results/"), exist_ok=True)
 os.makedirs(os.path.dirname("tests/"), exist_ok=True)
+
+test_count = 1
+# Find amount of tests
+if os.path.exists(base_folder[:-1]+"_evaluation"):
+    in_file = open(base_folder[:-1]+"_evaluation", "r")
+    test_count = len(in_file.read().split()) + 1
+    in_file.close()
+
 
 if verbose:
     print("[Test] Generating model... ",end="",flush=True)
@@ -142,21 +147,21 @@ if verbose:
     print("done.",flush=True)
 
 # TEST THE MODEL
-evaluation_errors = []
-evaluation_times_std = []
-evaluation_times_compr = []
-decoding_errors = []
-decoding_paths_std_errors = []
-decoding_paths_compr_errors = []
-decoding_times_std = []
-decoding_times_compr = []
+evaluation_error = 0
+evaluation_time_std = 0
+evaluation_time_compr = 0
+decoding_error = []
+decoding_path_std_error = []
+decoding_path_compr_error = []
+decoding_time_std = []
+decoding_time_compr = []
 ur_model_diff = []
 cr_model_diff = []
 # u_model = []
 # c_model = []
-training_times_std = []
-training_times_compr = []
-for iteration in range(1, n_tests+1):
+training_time_std = []
+training_time_compr = []
+for iteration in range(test_count, n_tests+1):
     print("[Test",test_count,"] Started.")
     # Step 1: data generation
     if verbose:
@@ -174,7 +179,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(eval_std_args)
     end = time.perf_counter()
-    evaluation_times_std.append(end - start)
+    evaluation_time_std = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM uncompressed evaluation "
             "finished.")
@@ -184,7 +189,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(eval_compr_args)
     end = time.perf_counter()
-    evaluation_times_compr.append(end - start)
+    evaluation_times_compr = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM compressed evaluation "
             "finished.")
@@ -204,7 +209,7 @@ for iteration in range(1, n_tests+1):
             "probability:", compressed_evaluation_prob)
         print("[Test",test_count,"] Relative Error:",
             eval_relative_error)
-    evaluation_errors.append(eval_relative_error)
+    evaluation_error = eval_relative_error
 
     # Step 3: decoding problem
     if verbose:
@@ -213,7 +218,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(decod_std_args)
     end = time.perf_counter()
-    decoding_times_std.append(end - start)
+    decoding_time_std = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM uncompressed decoding "
             "finished.")
@@ -223,7 +228,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(decod_compr_args)
     end = time.perf_counter()
-    decoding_times_compr.append(end - start)
+    decoding_time_compr = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM compressed decoding "
             "finished.")
@@ -243,19 +248,19 @@ for iteration in range(1, n_tests+1):
             compressed_decoding_prob)
         print("[Test",test_count,"] Relative Error:",
             decod_relative_error)
-    decoding_errors.append(decod_relative_error)
+    decoding_error = decod_relative_error
     path_errors = viterbi_comparison.count_differences_uncompressed()/ \
         sequence_length
     if verbose:
         print("[Test",test_count,"] Fraction of errors in path for "
             "uncompressed:", path_errors)
-    decoding_paths_std_errors.append(path_errors)
+    decoding_path_std_error = path_errors
     path_errors = viterbi_comparison.count_differences_compressed()/ \
         sequence_length
     if verbose:
         print("[Test",test_count,"] Fraction of errors in path for "
             "compressed:", path_errors)
-    decoding_paths_compr_errors.append(path_errors)
+    decoding_path_compr_error = path_errors
 
     # Step 4: training problem
     if verbose:
@@ -264,7 +269,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(train_std_args)
     end = time.perf_counter()
-    training_times_std.append(end - start)
+    training_time_std = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM uncompressed training "
             "finished.")
@@ -274,7 +279,7 @@ for iteration in range(1, n_tests+1):
     start = time.perf_counter()
     subprocess.call(train_compr_args)
     end = time.perf_counter()
-    training_times_compr.append(end - start)
+    training_time_compr = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM compressed training "
             "finished.")
@@ -311,44 +316,42 @@ for iteration in range(1, n_tests+1):
     ur_diff.append(compute_error(r_init[0], u_init[0]))
     cr_diff.append(compute_error(r_init[0], c_init[0]))
 
-    ur_model_diff.append(ur_diff)
-    cr_model_diff.append(cr_diff)
+    ur_model_diff = ur_diff
+    cr_model_diff = cr_diff
 
     test_count = test_count + 1
 
 
-# Save testing results to file
-prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" + \
-    str(eta) + "_"
-print("[Test] Saving files with prefix:",prefix)
-# Evaluation
-savetofile(f_eval_out, evaluation_errors)
-savetofile(f_eval_time_std_out, evaluation_times_std)
-savetofile(f_eval_time_compr_out, evaluation_times_compr)
-# Decoding
-savetofile(f_decod_prob_out, decoding_errors)
-savetofile(f_decod_path_std_out, decoding_paths_std_errors)
-savetofile(f_decod_path_compr_out, decoding_paths_compr_errors)
-savetofile(f_decod_time_std_out, decoding_times_std)
-savetofile(f_decod_time_compr_out, decoding_times_compr)
-# Training
-out_file = open(prefix+f_train_std_out, "w")
-for i in range(0, n_tests):
-    for x in range(0, len(ur_model_diff[i])):
-        out_file.write(str(ur_model_diff[i][x]) + " ")
+    # Save testing results to file
+    prefix = "tests/" + topology_prefix + "_" + str(n_states) + "_" + \
+        str(eta) + "_"
+    # print("[Test] Saving files with prefix:",prefix)
+    # Evaluation
+    appendtofile(f_eval_out, evaluation_error)
+    appendtofile(f_eval_time_std_out, evaluation_time_std)
+    appendtofile(f_eval_time_compr_out, evaluation_time_compr)
+    # Decoding
+    appendtofile(f_decod_prob_out, decoding_error)
+    appendtofile(f_decod_path_std_out, decoding_path_std_error)
+    appendtofile(f_decod_path_compr_out, decoding_path_compr_error)
+    appendtofile(f_decod_time_std_out, decoding_time_std)
+    appendtofile(f_decod_time_compr_out, decoding_time_compr)
+    # Training
+    out_file = open(prefix+f_train_std_out, "a+")
+    for x in range(0, len(ur_model_diff)):
+        out_file.write(str(ur_model_diff[x]) + " ")
     out_file.write("\n")
-out_file.close()
-out_file = open(prefix+f_train_compr_out, "w")
-for i in range(0, n_tests):
-    for x in range(0, len(cr_model_diff[i])):
-        out_file.write(str(cr_model_diff[i][x]) + " ")
+    out_file.close()
+    out_file = open(prefix+f_train_compr_out, "a+")
+    for x in range(0, len(cr_model_diff)):
+        out_file.write(str(cr_model_diff[i]) + " ")
     out_file.write("\n")
-out_file.close()
-savetofile(f_train_time_std_out, training_times_std)
-savetofile(f_train_time_compr_out, training_times_compr)
+    out_file.close()
+    appendtofile(f_train_time_std_out, training_time_std)
+    appendtofile(f_train_time_compr_out, training_time_compr)
 
 
 os.chdir("..") # go back to parent directory
 
 
-print("\n[Test] -- Testing is finished.")
+print("[Test] -- Testing for",base_folder,"is finished.")

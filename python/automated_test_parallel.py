@@ -30,7 +30,7 @@ eta = float(sys.argv[3])
 topology_prefix = topology
 n_transitions = 10
 sequence_length = 100000
-n_tests = 4
+n_tests = 100
 
 verbose = False
 

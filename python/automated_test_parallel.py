@@ -189,7 +189,7 @@ for iteration in range(test_count, n_tests+1):
     start = time.perf_counter()
     subprocess.call(eval_compr_args)
     end = time.perf_counter()
-    evaluation_times_compr = end - start
+    evaluation_time_compr = end - start
     if verbose:
         print("[Test",test_count,"] WaHMM compressed evaluation "
             "finished.")
@@ -344,7 +344,7 @@ for iteration in range(test_count, n_tests+1):
     out_file.close()
     out_file = open(prefix+f_train_compr_out, "a+")
     for x in range(0, len(cr_model_diff)):
-        out_file.write(str(cr_model_diff[i]) + " ")
+        out_file.write(str(cr_model_diff[x]) + " ")
     out_file.write("\n")
     out_file.close()
     appendtofile(f_train_time_std_out, training_time_std)

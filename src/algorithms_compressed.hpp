@@ -488,7 +488,6 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
     }
 
     if(tofile){
-        m.sortModel();
         if(verbose){
             std::cout << "[>] Saving trained model to file " << PATH_OUT;
             std::cout << "training_model ... " << std::flush;

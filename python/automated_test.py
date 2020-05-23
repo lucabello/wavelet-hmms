@@ -7,6 +7,7 @@ import utilities_io as uio
 from math import exp, log, isnan
 import numpy as np
 import time
+import networkx as nx
 
 # OPTIONS
 topology_prefix = "FC"
@@ -271,21 +272,60 @@ for eta in etas:
             ur_diff.append(r_nstates)
             cr_diff.append(r_nstates)
             # states
+            # find max KL-divergence
+            u_max = -1
+            c_max = -1
             for i in range(0, r_nstates):
-                ur_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
-                    u_means[i], u_stddevs[i]))
-                cr_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
-                    c_means[i], c_stddevs[i]))
+                for j in range(0, r_nstates):
+                    u_kl = kl_divergence_gaussians(r_means[i], r_stddevs[i],
+                        u_means[j], u_stddevs[j])
+                    if u_kl > u_max:
+                        u_max = u_kl
+                    c_kl = kl_divergence_gaussians(r_means[i], r_stddevs[i],
+                        c_means[j], c_stddevs[j])
+                    if c_kl > c_max:
+                        c_max = c_kl
+            # setup nx graph
+            G_ur = nx.Graph()
+            G_cr = nx.Graph()
+            for i in range(0, r_nstates):
+                G_ur.add_node("r"+str(i))
+                G_ur.add_node("u"+str(i))
+                G_cr.add_node("r"+str(i))
+                G_cr.add_node("c"+str(i))
+            for i in range(0, r_nstates):
+                for j in range(0, u_nstates):
+                    G_ur.add_edge("r"+str(i), "u"+str(j), \
+                        weight=(u_max-kl_divergence_gaussians(r_means[i], r_stddevs[i],\
+                        u_means[j], u_stddevs[j])))
+                    G_cr.add_edge("r"+str(i), "c"+str(j), \
+                        weight=(c_max-kl_divergence_gaussians(r_means[i], r_stddevs[i],\
+                        c_means[j], c_stddevs[j])))
+            ur_mates = nx.max_weight_matching(G_ur, maxcardinality=True)
+            cr_mates = nx.max_weight_matching(G_cr, maxcardinality=True)
+            for i in range(0, r_nstates):
+                ur_diff.append(u_max - G_ur["r"+str(i)][ur_mates["r"+str(i)]]['weight'])
+                cr_diff.append(c_max - G_cr["r"+str(i)][cr_mates["r"+str(i)]]['weight'])
+            # for i in range(0, r_nstates):
+            #     ur_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
+            #         u_means[i], u_stddevs[i]))
+            #     cr_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
+            #         c_means[i], c_stddevs[i]))
+            u_neworder = []
+            c_neworder = []
+            for i in range(0, r_nstates):
+                u_neworder.append(int(ur_mates["r"+str(i)][1:]))
+                c_neworder.append(int(cr_mates["r"+str(i)][1:]))
             # transitions
             for i in range(0, r_nstates):
                 for j in range(0, r_nstates):
                     ur_diff.append(compute_error(r_trans[i*r_nstates+j],
-                        u_trans[i*r_nstates+j]))
+                        u_trans[u_neworder[i*r_nstates+j]]))
                     cr_diff.append(compute_error(r_trans[i*r_nstates+j],
-                        c_trans[i*r_nstates+j]))
+                        c_trans[c_neworder[i*r_nstates+j]]))
             # initial distributions
-            ur_diff.append(compute_error(r_init[0], u_init[0]))
-            cr_diff.append(compute_error(r_init[0], c_init[0]))
+            ur_diff.append(compute_error(r_init[0], u_init[u_neworder[0]]))
+            cr_diff.append(compute_error(r_init[0], c_init[c_neworder[0]]))
 
             ur_model_diff.append(ur_diff)
             cr_model_diff.append(cr_diff)

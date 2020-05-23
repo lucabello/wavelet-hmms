@@ -409,9 +409,6 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
         newEvaluation = baum_welch_iteration(m, obs, minObs,
             logEpsilon, logBackward, prevLogBackward, logPi, logGamma,
             logGammaSum, logAverage, logVariance);
-        // newEvaluation = training_problem_scaled(m, obs, minObs,
-        //     logEpsilon, logPi, logGamma,
-        //     logGammaSum, logAverage, logVariance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
         if(verbose){
@@ -429,7 +426,6 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
     }
 
     if(tofile){
-        m.sortModel();
         if(verbose){
             std::cout << "[>] Saving trained model to file " << PATH_OUT;
             std::cout << "training_model ... " << std::flush;

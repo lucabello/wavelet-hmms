@@ -304,7 +304,7 @@ for eta in etas:
             ur_mates = dict(nx.max_weight_matching(G_ur, maxcardinality=True))
             cr_mates = dict(nx.max_weight_matching(G_cr, maxcardinality=True))
             for v in ur_mates:
-                ur_diff.append(u_max - G_ur[v][ur_mates[v]['weight'])
+                ur_diff.append(u_max - G_ur[v][ur_mates[v]]['weight'])
             for v in cr_mates:
                 cr_diff.append(c_max - G_cr[v][cr_mates[v]]['weight'])
             u_neworder = [-1] * r_nstates
@@ -323,9 +323,9 @@ for eta in etas:
             for i in range(0, r_nstates):
                 for j in range(0, r_nstates):
                     ur_diff.append(compute_error(r_trans[i*r_nstates+j],
-                        u_trans[u_neworder[i*r_nstates+j]]))
+                        u_trans[u_neworder[i]*r_nstates+u_neworder[j]]))
                     cr_diff.append(compute_error(r_trans[i*r_nstates+j],
-                        c_trans[c_neworder[i*r_nstates+j]]))
+                        c_trans[c_neworder[i]*r_nstates+c_neworder[j]]))
             # initial distributions
             ur_diff.append(compute_error(r_init[0], u_init[u_neworder[0]]))
             cr_diff.append(compute_error(r_init[0], c_init[c_neworder[0]]))

@@ -332,14 +332,22 @@ for iteration in range(test_count, n_tests+1):
                 c_means[j], c_stddevs[j])))
     ur_mates = dict(nx.max_weight_matching(G_ur, maxcardinality=True))
     cr_mates = dict(nx.max_weight_matching(G_cr, maxcardinality=True))
-    for i in range(0, r_nstates):
-        ur_diff.append(u_max - G_ur["r"+str(i)][ur_mates["r"+str(i)]]['weight'])
-        cr_diff.append(c_max - G_cr["r"+str(i)][cr_mates["r"+str(i)]]['weight'])
-    u_neworder = []
-    c_neworder = []
-    for i in range(0, r_nstates):
-        u_neworder.append(int(ur_mates["r"+str(i)][1:]))
-        c_neworder.append(int(cr_mates["r"+str(i)][1:]))
+    for v in ur_mates:
+        ur_diff.append(u_max - G_ur[v][ur_mates[v]['weight'])
+    for v in cr_mates:
+        cr_diff.append(c_max - G_cr[v][cr_mates[v]]['weight'])
+    u_neworder = [-1] * r_nstates
+    c_neworder = [-1] * r_nstates
+    for v in ur_mates:
+        if "r" in v:
+            u_neworder[int(v[1:])] = int(ur_mates[v][1:])
+        else:
+            u_neworder[int(ur_mates[v][1:])] = int(v[1:])
+    for v in cr_mates:
+        if "r" in v:
+            c_neworder[int(v[1:])] = int(cr_mates[v][1:])
+        else:
+            c_neworder[int(cr_mates[v][1:])] = int(v[1:])
     # transitions
     for i in range(0, r_nstates):
         for j in range(0, r_nstates):

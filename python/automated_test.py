@@ -301,8 +301,8 @@ for eta in etas:
                     G_cr.add_edge("r"+str(i), "c"+str(j), \
                         weight=(c_max-kl_divergence_gaussians(r_means[i], \
                         r_stddevs[i], c_means[j], c_stddevs[j])))
-            ur_mates = nx.max_weight_matching(G_ur, maxcardinality=True)
-            cr_mates = nx.max_weight_matching(G_cr, maxcardinality=True)
+            ur_mates = dict(nx.max_weight_matching(G_ur, maxcardinality=True))
+            cr_mates = dict(nx.max_weight_matching(G_cr, maxcardinality=True))
             for i in range(0, r_nstates):
                 ur_diff.append(u_max - \
                         G_ur["r"+str(i)][ur_mates["r"+str(i)]]['weight'])

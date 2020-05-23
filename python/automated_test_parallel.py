@@ -330,16 +330,11 @@ for iteration in range(test_count, n_tests+1):
             G_cr.add_edge("r"+str(i), "c"+str(j), \
                 weight=(c_max-kl_divergence_gaussians(r_means[i], r_stddevs[i],\
                 c_means[j], c_stddevs[j])))
-    ur_mates = nx.max_weight_matching(G_ur, maxcardinality=True)
-    cr_mates = nx.max_weight_matching(G_cr, maxcardinality=True)
+    ur_mates = dict(nx.max_weight_matching(G_ur, maxcardinality=True))
+    cr_mates = dict(nx.max_weight_matching(G_cr, maxcardinality=True))
     for i in range(0, r_nstates):
         ur_diff.append(u_max - G_ur["r"+str(i)][ur_mates["r"+str(i)]]['weight'])
         cr_diff.append(c_max - G_cr["r"+str(i)][cr_mates["r"+str(i)]]['weight'])
-    # for i in range(0, r_nstates):
-    #     ur_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
-    #         u_means[i], u_stddevs[i]))
-    #     cr_diff.append(kl_divergence_gaussians(r_means[i], r_stddevs[i],
-    #         c_means[i], c_stddevs[i]))
     u_neworder = []
     c_neworder = []
     for i in range(0, r_nstates):

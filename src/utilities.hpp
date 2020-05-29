@@ -6,11 +6,12 @@
 /** Given (a = log(x) and b = log(y), returns log(x+y)) */
 wahmm::real_t sum_logarithms(wahmm::real_t a, wahmm::real_t b){
     /**
-	Perform log-sum-exp on a pair of numbers in log space..  This is calculated
-	as z = log( e**x + e**y ). However, this causes underflow sometimes
-	when x or y are too negative. A simplification of this is thus
-	z = x + log( e**(y-x) + 1 ), where x is the greater number. If either of
-	the inputs are infinity, return infinity, and if either of the inputs
+	Perform log-sum-exp on a pair of numbers in log space..
+    This is calculated as z = log( e**x + e**y ). However,
+    this causes underflow sometimes	when x or y are too negative.
+    A simplification of this is thus z = x + log( e**(y-x) + 1 ),
+    where x is the greater number. If either of	the inputs are
+    infinity, return infinity, and if either of the inputs
 	are negative infinity, then simply return the other input.
 	*/
     if(a == infin || b == infin)

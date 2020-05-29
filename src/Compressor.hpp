@@ -139,8 +139,7 @@ Compressor::Compressor(std::string& f, bool binary){
         HaarBreakpointWeights(mInputValues);
         mIntegralArray = new Statistics<IntegralArray,Normal>(mStats,nrDataDim);
         mWaveletBlocks = new Blocks<BreakpointArray>(mInputValues);
-
-		stdEstimate /= 0.797884560802865355879892119868763736951717262329869315;
+        stdEstimate /= 0.797884560802865355879892119868763736951717262329869315;
         mThreshold = sqrt(2*log((real_t)mWaveletBlocks->size())*stdEstimate);
 
 		mWaveletBlocks->createBlocks(mThreshold);
@@ -281,15 +280,15 @@ void MaxletTransform(
     const size_t nrDim = 1,
     const size_t reserveT = 0
 ) {
-	if ( nrDim <= 0 ) {
-		throw runtime_error( "Number of dimensions must be positive!" );
-	}
+    if ( nrDim <= 0 ) {
+        throw runtime_error( "Number of dimensions must be positive!" );
+    }
 	if ( coeffs.size() > 0 ) {
-		throw runtime_error( "Coefficient array must be empty!" );
+        throw runtime_error( "Coefficient array must be empty!" );
 	}
 	if ( suffstats.size() > 0 ) {
-		throw runtime_error( "Statistics array must be empty!" );
-	}
+        throw runtime_error( "Statistics array must be empty!" );
+    }
 	if ( fin != NULL ) {
 		coeffs.reserve( ( reserveT + nrDim ) / nrDim + nrDim );
 		suffstats.reserve( reserveT + nrDim );
@@ -306,37 +305,37 @@ void MaxletTransform(
         else {
             fileEnd = (fread(&inputNum,1,sizeof(double),fin) != sizeof(double));
         }
-		while ( !fileEnd ) {
+        while ( !fileEnd ) {
             v = (real_t)inputNum;
-			S.push_back( v );
-			suffstats.push_back( SufficientStatistics<T>( v ) );
-			dim++;
-			if ( dim == nrDim ) {
-				dim = 0;
-				coeffs.push_back( inf );
-				size_t j = i;
-				size_t m = 1;
-				real_t normalizer = sqrt2half;
-				while ( ( j & m ) > 0 ) {
-					real_t maxCoeff = 0;
-					size_t L = S.size() - 2 * nrDim;
-					size_t R = L + nrDim;
-					for ( size_t d = 0; d < nrDim; ++d ) {
-						maxCoeff = max(maxCoeff,normalizer*abs(S[L]-S[R]));
-						S[L] += S[R];
-						L++;
-						R++;
-					}
-					coeffs[j] = maxCoeff;
-					for ( size_t d = 0; d < nrDim; ++d ) {
-						S.pop_back();
-					}
-					j = j - m;
-					m *= 2;
-					normalizer *= sqrt2half;
-				}
-				i++;
-			}
+            S.push_back( v );
+            suffstats.push_back( SufficientStatistics<T>( v ) );
+            dim++;
+            if ( dim == nrDim ) {
+                dim = 0;
+                coeffs.push_back( inf );
+                size_t j = i;
+                size_t m = 1;
+                real_t normalizer = sqrt2half;
+                while ( ( j & m ) > 0 ) {
+                    real_t maxCoeff = 0;
+                    size_t L = S.size() - 2 * nrDim;
+                    size_t R = L + nrDim;
+                    for ( size_t d = 0; d < nrDim; ++d ) {
+                        maxCoeff = max(maxCoeff,normalizer*abs(S[L]-S[R]));
+                        S[L] += S[R];
+                        L++;
+                        R++;
+                    }
+                    coeffs[j] = maxCoeff;
+                    for ( size_t d = 0; d < nrDim; ++d ) {
+                        S.pop_back();
+                    }
+                    j = j - m;
+                    m *= 2;
+                    normalizer *= sqrt2half;
+                }
+                i++;
+            }
             if(!binary){
                 fileEnd = (fscanf(fin, "%lf", &inputNum) == EOF);
             }
@@ -344,19 +343,19 @@ void MaxletTransform(
                 fileEnd = (fread(&inputNum,1,sizeof(double),fin) !=
                     sizeof(double));
             }
-		}
+        }
 
 
 		if ( dim != 0 ) {
-			throw runtime_error( "Input stream did not contain enough values"
+            throw runtime_error( "Input stream did not contain enough values"
                 "to fill all dimensions at last position!" );
-		}
+            }
 
-		coeffs[0] = inf;
+        coeffs[0] = inf;
 
-	} else {
-		throw runtime_error( "Cannot read input file or stream!" );
-	}
+    } else {
+    	throw runtime_error( "Cannot read input file or stream!" );
+    }
 }
 
 

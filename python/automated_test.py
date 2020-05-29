@@ -296,11 +296,11 @@ for eta in etas:
             for i in range(0, r_nstates):
                 for j in range(0, u_nstates):
                     G_ur.add_edge("r"+str(i), "u"+str(j), \
-                        weight=(u_max-kl_divergence_gaussians(r_means[i], r_stddevs[i],\
-                        u_means[j], u_stddevs[j])))
+                        weight=(u_max-kl_divergence_gaussians(r_means[i], \
+                        r_stddevs[i], u_means[j], u_stddevs[j])))
                     G_cr.add_edge("r"+str(i), "c"+str(j), \
-                        weight=(c_max-kl_divergence_gaussians(r_means[i], r_stddevs[i],\
-                        c_means[j], c_stddevs[j])))
+                        weight=(c_max-kl_divergence_gaussians(r_means[i], \
+                        r_stddevs[i], c_means[j], c_stddevs[j])))
             ur_mates = dict(nx.max_weight_matching(G_ur, maxcardinality=True))
             cr_mates = dict(nx.max_weight_matching(G_cr, maxcardinality=True))
             for v in ur_mates:

@@ -14,7 +14,8 @@ from statistics import median, pstdev
 n_tests = 100
 save_boxplots = True
 topologies = ["FC", "CI", "LR"]
-n_states = ["2", "3", "5"]
+n_states = ["2", "3", "5", "10", "20"]
+boxplot_states = ["2", "5", "20"]
 etas = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
 x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 folder = "plots/"
@@ -35,29 +36,44 @@ f_tr_std_t = "training_std_time"
 f_tr_compr_t = "training_compr_time"
 
 
-def save_boxplot(data, title, topology, suffix, ybot, ytop, ylabel, xlabel):
+def save_boxplot(data, title, topology, suffix, ylabel, xlabel):
     f = base_savename + topology + "_" + suffix
     plt.title(title)
-    fig, ax = plt.subplots(len(n_states), constrained_layout=True)
-    for i in range(0, len(n_states)):
-        ax[i].set(title=n_states[i]+" states")
+    # fig, ax = plt.subplots(len(n_states))
+    fig, ax = plt.subplots(len(boxplot_states))
+    for i in range(0, len(boxplot_states)):
+        ax[i].set(title=boxplot_states[i]+" states")
         ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
             alpha=0.5)
-        ax[i].set_ylim(ybot[i], ytop[i])
         ax[i].set_xticklabels(etas)
+        ax[i].ticklabel_format(axis='y', style='sci', scilimits=(-3,10))
+        # remove 3 outliers so boxplots look better
+        for count in [0, 1, 2]:
+            for eta in range(0, len(data[i])):
+                tmp_max = -10000000
+                tmp_min = 10000000
+                for j in range(0, len(data[i][eta])):
+                    if data[i][eta][j] > tmp_max:
+                        tmp_max = data[i][eta][j]
+                    if data[i][eta][j] < tmp_min:
+                        tmp_min = data[i][eta][j]
+                data[i][eta].remove(tmp_max)
+                data[i][eta].remove(tmp_min)
         ax[i].boxplot(data[i])
         # plt.figure(figsize=(2,1))
         # plt.tight_layout()
         ax[i].set_xlabel(xlabel)
         ax[i].set_ylabel(ylabel)
-    plt.savefig(f)
+    plt.tight_layout()
+    plt.savefig(f,format='png')
+    print(f,"saved")
     plt.close()
     plt.clf()
 
 
 def save_plot(x, y_allstates, title, topology, suffix, ylabel, xlabel):
     f = base_savename + topology + "_" + suffix
-    line_styles = ['-', '--', ':']
+    line_styles = ['-', '--', ':', '-.', '-', '--', ':', '-.']
     for i in range(0, len(n_states)):
         plt.title(title)
         plt.plot(x, y_allstates[i], label=n_states[i]+" states", \
@@ -65,7 +81,9 @@ def save_plot(x, y_allstates, title, topology, suffix, ylabel, xlabel):
         plt.legend(loc='upper right', frameon=False)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.savefig(f)
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(-3,10))
+    plt.savefig(f,format='png')
+    print(f,"saved")
     plt.close()
     plt.clf()
 
@@ -86,15 +104,13 @@ def plot_evaluation(topology):
         y_all.append(y)
     save_plot(x, y_all, "Evaluation: probability relative error", topology, \
         "evaluation", "Error (relative)", "State separation")
-    if topology == "LR":
-        tmp_ybot = [0.0,0.0,0.0]
-        tmp_ytop = [0.0005, 0.0005, 0.001]
-    else:
-        tmp_ybot = [0.0,0.0,0.0]
-        tmp_ytop = [0.003, 0.003, 0.003]
-    save_boxplot(data=ev_list, title="Evaluation: probability error", \
-        topology=topology, suffix="evaluation_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop, ylabel="Error (relative)", xlabel="State separation")
+    boxplot_list = []
+    boxplot_list.append(ev_list[n_states.index(boxplot_states[0])])
+    boxplot_list.append(ev_list[n_states.index(boxplot_states[1])])
+    boxplot_list.append(ev_list[n_states.index(boxplot_states[2])])
+    save_boxplot(data=boxplot_list, title="Evaluation: probability error", \
+        topology=topology, suffix="evaluation_boxplot", \
+        ylabel="Error (relative)", xlabel="State separation")
 
 
 def plot_decoding(topology):
@@ -118,15 +134,13 @@ def plot_decoding(topology):
         y_all.append(y)
     save_plot(x, y_all, "Decoding: relative path error", topology, \
         "decoding", "Error (relative)", "State separation")
-    if topology == "LR":
-        tmp_ybot = [0.0,0.0,0.0]
-        tmp_ytop = [0.001, 0.001, 0.001]
-    else:
-        tmp_ybot = [0.0,0.0,0.0]
-        tmp_ytop = [0.001, 0.001, 0.001]
-    save_boxplot(data=de_list, title="Decoding: path error increment", \
-        topology=topology, suffix="decoding_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop, ylabel="Error (relative)", xlabel="State separation")
+    boxplot_list = []
+    boxplot_list.append(de_list[n_states.index(boxplot_states[0])])
+    boxplot_list.append(de_list[n_states.index(boxplot_states[1])])
+    boxplot_list.append(de_list[n_states.index(boxplot_states[2])])
+    save_boxplot(data=boxplot_list, title="Decoding: path error increment", \
+        topology=topology, suffix="decoding_boxplot", \
+        ylabel="Error (relative)", xlabel="State separation")
 
 
 def summarize_training(filename):
@@ -217,36 +231,29 @@ def plot_training(topology):
         topology, "training_in", "Difference (abs)", "State separation")
 
     # Training KL
-    if topology == "CI":
-        tmp_ybot = [-0.01, -0.5, -2]
-        tmp_ytop = [0.01, 0.3, 0.5]
-    elif topology == "FC":
-        tmp_ybot = [-0.02, -1, -2]
-        tmp_ytop = [0.01, 0.3, 1]
-    elif topology == "LR":
-        tmp_ybot = [-0.1, -8, -14]
-        tmp_ytop = [0.05, 8, 10]
-    save_boxplot(data=tr_kl_list, title="Training: states error", \
-        topology=topology, suffix="training_kl_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop, ylabel="Difference (abs)", \
-        xlabel="State separation")
+    boxplot_kl_list = []
+    boxplot_kl_list.append(tr_kl_list[n_states.index(boxplot_states[0])])
+    boxplot_kl_list.append(tr_kl_list[n_states.index(boxplot_states[1])])
+    boxplot_kl_list.append(tr_kl_list[n_states.index(boxplot_states[2])])
+    save_boxplot(data=boxplot_kl_list, title="Training: states error", \
+        topology=topology, suffix="training_kl_boxplot", \
+        ylabel="Difference (abs)", xlabel="State separation")
     # Training TR
-    tmp_ybot = [-0.5, -0.5, -0.5]
-    tmp_ytop = [0.5, 0.5, 0.5]
-    save_boxplot(data=tr_tr_list, title="Training: transitions error", \
-        topology=topology, suffix="training_tr_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop, ylabel="Difference (abs)", \
-        xlabel="State separation")
+    boxplot_tr_list = []
+    boxplot_tr_list.append(tr_tr_list[n_states.index(boxplot_states[0])])
+    boxplot_tr_list.append(tr_tr_list[n_states.index(boxplot_states[1])])
+    boxplot_tr_list.append(tr_tr_list[n_states.index(boxplot_states[2])])
+    save_boxplot(data=boxplot_tr_list, title="Training: transitions error", \
+        topology=topology, suffix="training_tr_boxplot", \
+        ylabel="Difference (abs)", xlabel="State separation")
     # Training IN
-    if topology == "LR":
-        tmp_ybot = [-0.000011, -0.000011, -0.000011]
-        tmp_ytop = [0.0000005, 0.0000005, 0.0000005]
-    else:
-        tmp_ybot = [-0.00000025, -0.000005, -0.00001]
-        tmp_ytop = [0.00000005, 0.0000005, 0.0000005]
-    save_boxplot(data=tr_in_list, title="Training: initial distribution error",\
-        topology=topology, suffix="training_in_boxplot", ybot=tmp_ybot, \
-        ytop=tmp_ytop, ylabel="Difference (abs)", \
+    boxplot_in_list = []
+    boxplot_in_list.append(tr_in_list[n_states.index(boxplot_states[0])])
+    boxplot_in_list.append(tr_in_list[n_states.index(boxplot_states[1])])
+    boxplot_in_list.append(tr_in_list[n_states.index(boxplot_states[2])])
+    save_boxplot(data=boxplot_in_list, \
+        title="Training: initial distribution error", topology=topology, \
+        suffix="training_in_boxplot", ylabel="Difference (abs)", \
         xlabel="State separation")
 
 
@@ -278,40 +285,16 @@ def plot_speedup(topology):
             y_all.append(y)
         save_plot(x, y_all, "Speedup: "+p, topology, "speedup_"+p, \
             "Speedup", "State separation")
-        if topology == "CI":
-            if p == "evaluation":
-                tmp_ybot = [0.0, 0.5, 1.0]
-                tmp_ytop = [1.0, 1.5, 2.0]
-            elif p == "decoding":
-                tmp_ybot = [0.5, 0.5, 0.5]
-                tmp_ytop = [1.5, 1.5, 1.5]
-            elif p =="training":
-                tmp_ybot = [0, 0, 0]
-                tmp_ytop = [300, 600, 1500]
-        elif topology == "FC":
-            if p == "evaluation":
-                tmp_ybot = [0.4, 0.75, 2]
-                tmp_ytop = [0.9, 1.75, 4]
-            elif p == "decoding":
-                tmp_ybot = [0.5, 0.5, 0.75]
-                tmp_ytop = [1.25, 1.25, 1.75]
-            elif p == "training":
-                tmp_ybot = [0, 0, 0]
-                tmp_ytop = [300, 700, 1500]
-        elif topology == "LR":
-            if p == "evaluation":
-                tmp_ybot = [0.25, 0.5, 1.25]
-                tmp_ytop = [1, 1.25, 2.25]
-            elif p == "decoding":
-                tmp_ybot = [0.5, 0.75, 1]
-                tmp_ytop = [1.25, 1.5, 2]
-            elif p == "training":
-                tmp_ybot = [0, 0, 0]
-                tmp_ytop = [400, 700, 1700]
-        save_boxplot(data=speedup_list, title="Speedup: "+p, \
-            topology=topology, suffix="speedup_"+p+"_boxplot", ybot=tmp_ybot, \
-            ytop=tmp_ytop, ylabel="Speedup", \
-            xlabel="State separation")
+        boxplot_speedup_list = []
+        boxplot_speedup_list.append( \
+            speedup_list[n_states.index(boxplot_states[0])])
+        boxplot_speedup_list.append( \
+            speedup_list[n_states.index(boxplot_states[1])])
+        boxplot_speedup_list.append( \
+            speedup_list[n_states.index(boxplot_states[2])])
+        save_boxplot(data=boxplot_speedup_list, title="Speedup: "+p, \
+            topology=topology, suffix="speedup_"+p+"_boxplot", \
+            ylabel="Speedup", xlabel="State separation")
 
 if __name__ == "__main__":
     # create folder if it doesnt exist
@@ -327,6 +310,7 @@ if __name__ == "__main__":
     files = listdir(folder)
     for f in files:
         if "boxplot" not in f and "MERGE" not in f:
-            subprocess.call("convert "+folder+f+" "+folder+f[:-4]+ \
-                "_boxplot.png +append " + \
+            subprocess.call("convert "+folder+f+" "+folder+f+ \
+                "_boxplot +append " + \
                 folder+"MERGE_"+f[5:], shell=True)
+            print(f," merged")

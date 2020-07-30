@@ -1,4 +1,4 @@
-#*WaHMM* - *Wa*velet-compressed *H*idden *M*arkov *M*odels
+# *WaHMM* - *Wa*velet-compressed *H*idden *M*arkov *M*odels
 This is the respository holding the code for my master thesis written as en Erasmus student at Chalmers University (Gothenburg, Sweden). The thesis will be published by Chalmers and can be found at the following link:
 
 [insert link when available]

@@ -32,6 +32,7 @@ topology_prefix = topology
 n_transitions = 10
 sequence_length = 100000
 n_tests = 100
+n_training_runs = 10
 
 verbose = False
 
@@ -94,18 +95,19 @@ wahmm_args = []
 wahmm_args.append("../../bin/WaHMM")
 wahmm_args.append("--model")
 wahmm_args.append("data/model")
-wahmm_args.append("--estimate")
-wahmm_args.append("data/kmeans_model")
 wahmm_args.append("--obs")
 wahmm_args.append("data/bin_observations")
 wahmm_args.append("--binary")
 wahmm_args.append("--silence")
 wahmm_args.append("--tofile")
+whamm_args_no_estimate = wahmm_args.copy()
+wahmm_args.append("--estimate")
+wahmm_args.append("data/kmeans_model")
 eval_std_args = wahmm_args.copy()
 eval_std_args.append("--evaluation")
 decod_std_args = wahmm_args.copy()
 decod_std_args.append("--decoding")
-train_std_args = wahmm_args.copy()
+train_std_args = wahmm_args_no_estimate.copy()
 train_std_args.append("--training")
 eval_compr_args = eval_std_args.copy()
 eval_compr_args.append("--compressed")
@@ -264,34 +266,51 @@ for iteration in range(test_count, n_tests+1):
     decoding_path_compr_error = path_errors
 
     # Step 4: training problem
-    if verbose:
-        print("[Test",test_count,"] -- Running WaHMM uncompressed "
-            "training...")
-    start = time.perf_counter()
-    subprocess.call(train_std_args)
-    end = time.perf_counter()
-    training_time_std = end - start
-    if verbose:
-        print("[Test",test_count,"] WaHMM uncompressed training "
-            "finished.")
-    if verbose:
-        print("[Test",test_count,"] Running WaHMM compressed "
-            "training...")
-    start = time.perf_counter()
-    subprocess.call(train_compr_args)
-    end = time.perf_counter()
-    training_time_compr = end - start
-    if verbose:
-        print("[Test",test_count,"] WaHMM compressed training "
-            "finished.")
-
     # r stands for "real", u for "uncompressed" and c for "compressed"
     r_nstates, r_means, r_stddevs, r_trans, r_init = uio \
         .read_model()
+    # init u and c variables
     u_nstates, u_means, u_stddevs, u_trans, u_init = uio \
-        .read_model(f_train_mod)
+        .read_model()
+    u_iter = 100000
     c_nstates, c_means, c_stddevs, c_trans, c_init = uio \
-        .read_model(f_compr_train_mod)
+        .read_model()
+    c_iter = 100000
+    for bw_run in range(0, n_training_runs):
+        if verbose:
+            print("[Test",test_count,"] -- Running WaHMM uncompressed "
+                "training, run "+str(bw_run)+" of "+str(n_training_runs)+" ...")
+        current_train_std_args = train_std_args.copy()
+        current_train_std_args.append("--estimate")
+        current_train_std_args.append("data/kmeans_model_"+str(bw_run))
+        start = time.perf_counter()
+        subprocess.call(current_train_std_args)
+        end = time.perf_counter()
+        current_std_iterations = uio.read_trained_iterations(f_train_mod)
+        if current_std_iterations < u_iter:
+            training_time_std = end - start
+            u_nstates, u_means, u_stddevs, u_trans, u_init, u_iter = uio \
+                .read_trained_model(f_train_mod)
+        if verbose:
+            print("[Test",test_count,"] WaHMM uncompressed training "
+                "finished.")
+        if verbose:
+            print("[Test",test_count,"] Running WaHMM compressed "
+                "training, run "+str(bw_run)+" of "+str(n_training_runs)+" ...")
+        current_train_compr_args = train_compr_args.copy()
+        current_train_compr_args.append("--estimate")
+        current_train_compr_args.append("data/kmeans_model_"+str(bw_run))
+        start = time.perf_counter()
+        subprocess.call(current_train_compr_args)
+        end = time.perf_counter()
+        current_compr_iterations = uio.read_trained_iterations(f_train_mod)
+        if current_compr_iterations < c_iter:
+            training_time_compr = end - start
+            c_nstates, c_means, c_stddevs, c_trans, c_init, c_iter = uio \
+                .read_trained_model(f_compr_train_mod)
+        if verbose:
+            print("[Test",test_count,"] WaHMM compressed training "
+                "finished.")
 
     ur_diff = []
     cr_diff = []

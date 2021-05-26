@@ -496,6 +496,12 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
         }
+        if(verbose){
+            std::cout << "number of iterations ... " << std::flush;
+        }
+        if(modelFileOutput.is_open()){
+            modelFileOutput << iter;
+        }
         modelFileOutput.close();
         if(verbose)
             std::cout << "done." << std::endl;

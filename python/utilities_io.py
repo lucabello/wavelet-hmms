@@ -108,8 +108,67 @@ def read_model(f=model_file):
     for i in range(0, n_states):
         initial.append(exp(float(v[offset])))
         offset = offset + 1
+
     in_file.close()
     return n_states, means, std_devs, transitions, initial
+
+# This model also has the number of Baum-Welch iterations at the end
+def read_trained_model(f):
+    in_file = open(f, "r")
+    line = in_file.read()
+    v = line.split()
+    n_states = int(v[0])
+    means = []
+    std_devs = []
+    iterations = 0
+    offset = 1
+    for i in range(0, n_states):
+        means.append(float(v[offset + 2*i]))
+        std_devs.append(float(v[offset + 2*i + 1]))
+    transitions = []
+    offset = 1 + n_states*2
+    for i in range(0, n_states):
+        for j in range(0, n_states):
+            transitions.append(exp(float(v[offset])))
+            offset = offset + 1
+    initial = []
+    for i in range(0, n_states):
+        initial.append(exp(float(v[offset])))
+        offset = offset + 1
+    iterations = v[offset]
+    offset = offset + 1
+    in_file.close()
+    return n_states, means, std_devs, transitions, initial, iterations
+
+# Read the number of Baum-Welch iterations from a trained model file
+def read_trained_iterations(f):
+    in_file = open(f, "r")
+    line = in_file.read()
+    v = line.split()
+    n_states = int(v[0])
+    means = []
+    std_devs = []
+    iterations = 0
+    offset = 1
+    for i in range(0, n_states):
+        means.append(float(v[offset + 2*i]))
+        std_devs.append(float(v[offset + 2*i + 1]))
+    transitions = []
+    offset = 1 + n_states*2
+    for i in range(0, n_states):
+        for j in range(0, n_states):
+            transitions.append(exp(float(v[offset])))
+            offset = offset + 1
+    initial = []
+    for i in range(0, n_states):
+        initial.append(exp(float(v[offset])))
+        offset = offset + 1
+    iterations = v[offset]
+    offset = offset + 1
+    iterations = v[offset]
+    offset = offset + 1
+    in_file.close()
+    return iterations
 
 # Write list to a file
 def write_list(f, l):

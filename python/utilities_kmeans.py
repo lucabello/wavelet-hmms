@@ -65,7 +65,7 @@ def kmeans(observations, k):
     labels = kmeans.labels_
     return centroids, std_devs, labels
 
-def estimate_model(k, use_binary_file=True):
+def estimate_model(k, use_binary_file=True, model_file=kmeans_model_file, labels_file=kmeans_labels_file):
     if use_binary_file == True:
         observations = uio.read_observations_binary()
     else:
@@ -92,5 +92,5 @@ def estimate_model(k, use_binary_file=True):
     for i in range(0, len(labels)):
         sorted_labels.append(new_order[labels[i]])
 
-    write_kmeans_model(sorted_centroids, sorted_devs)
-    write_kmeans_labels(sorted_labels)
+    write_kmeans_model(sorted_centroids, sorted_devs, model_file)
+    write_kmeans_labels(sorted_labels, labels_file)

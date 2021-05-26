@@ -9,6 +9,8 @@ import sys
 # OPTIONS
 # Choose if kmeans should be performed or not
 perform_kmeans = True
+# Number of model estimations to produce with kmeans
+estimations_number = 10
 # Write the sequence to a binary file
 output_binary = True
 # Write the sequence1  in a human readable format
@@ -58,4 +60,5 @@ if output_path:
     uio.write_path(state_path)
 
 if perform_kmeans:
-    ukm.estimate_model(k=n_states)
+    for count in range(0, estimations_number):
+        ukm.estimate_model(k=n_states, model_file="kmeans_model_"+str(count), labels_file="kmeans_labels_"+str(count))

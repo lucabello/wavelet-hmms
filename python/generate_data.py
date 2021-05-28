@@ -61,4 +61,4 @@ if output_path:
 
 if perform_kmeans:
     for count in range(0, estimations_number):
-        ukm.estimate_model(k=n_states, model_file="kmeans_model_"+str(count), labels_file="kmeans_labels_"+str(count))
+        ukm.estimate_model(k=n_states, model_file="data/kmeans_model_"+str(count), labels_file="data/kmeans_labels_"+str(count))

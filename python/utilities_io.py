@@ -165,8 +165,6 @@ def read_trained_iterations(f):
         offset = offset + 1
     iterations = v[offset]
     offset = offset + 1
-    iterations = v[offset]
-    offset = offset + 1
     in_file.close()
     return iterations
 

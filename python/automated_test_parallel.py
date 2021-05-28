@@ -102,7 +102,7 @@ wahmm_args.append("--silence")
 wahmm_args.append("--tofile")
 wahmm_args_no_estimate = wahmm_args.copy()
 wahmm_args.append("--estimate")
-wahmm_args.append("data/kmeans_model")
+wahmm_args.append("data/kmeans_model_0")
 eval_std_args = wahmm_args.copy()
 eval_std_args.append("--evaluation")
 decod_std_args = wahmm_args.copy()
@@ -287,7 +287,7 @@ for iteration in range(test_count, n_tests+1):
         subprocess.call(current_train_std_args)
         end = time.perf_counter()
         current_std_iterations = uio.read_trained_iterations(f_train_mod)
-        if current_std_iterations < u_iter:
+        if int(current_std_iterations) < int(u_iter):
             training_time_std = end - start
             u_nstates, u_means, u_stddevs, u_trans, u_init, u_iter = uio \
                 .read_trained_model(f_train_mod)
@@ -304,7 +304,7 @@ for iteration in range(test_count, n_tests+1):
         subprocess.call(current_train_compr_args)
         end = time.perf_counter()
         current_compr_iterations = uio.read_trained_iterations(f_train_mod)
-        if current_compr_iterations < c_iter:
+        if int(current_compr_iterations) < int(c_iter):
             training_time_compr = end - start
             c_nstates, c_means, c_stddevs, c_trans, c_init, c_iter = uio \
                 .read_trained_model(f_compr_train_mod)

@@ -434,6 +434,12 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
         }
+	if(verbose){
+            std::cout << "number of iterations ..." << std::flush;
+        }
+        if(modelFileOutput.is_open()){
+          modelFileOutput << iter;
+        }
         modelFileOutput.close();
         if(verbose)
             std::cout << "done." << std::endl;

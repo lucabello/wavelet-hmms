@@ -13,11 +13,11 @@ from statistics import median, pstdev
 # OPTIONS
 n_tests = 100
 save_boxplots = True
-topologies = ["FC", "CI", "LR"]
-n_states = ["2", "3", "5", "10", "20"]
-boxplot_states = ["2", "5", "20"]
-etas = ["0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1.0"]
-x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+topologies = ["FC"]
+n_states = ["2", "3", "5"]
+boxplot_states = ["2", "3", "5"]
+etas = ["0.6", "0.7", "0.8", "0.9", "1.0"]
+x = [0.6, 0.7, 0.8, 0.9, 1.0]
 folder = "plots/"
 base_savename = folder+"PLOT_"
 
@@ -50,15 +50,8 @@ def save_boxplot(data, title, topology, suffix, ylabel, xlabel):
         # remove 3 outliers so boxplots look better
         for count in [0, 1, 2]:
             for eta in range(0, len(data[i])):
-                tmp_max = -10000000
-                tmp_min = 10000000
-                for j in range(0, len(data[i][eta])):
-                    if data[i][eta][j] > tmp_max:
-                        tmp_max = data[i][eta][j]
-                    if data[i][eta][j] < tmp_min:
-                        tmp_min = data[i][eta][j]
-                data[i][eta].remove(tmp_max)
-                data[i][eta].remove(tmp_min)
+                data[i][eta].remove(max(data[i][eta]))
+                data[i][eta].remove(min(data[i][eta]))
         ax[i].boxplot(data[i])
         # plt.figure(figsize=(2,1))
         # plt.tight_layout()
@@ -147,6 +140,7 @@ def summarize_training(filename):
     kl = []
     tr = []
     pi = []
+    iters = []
     list = uio.read_file_to_list(filename)
     index = 0
     for t in range(0, n_tests):
@@ -170,7 +164,9 @@ def summarize_training(filename):
         # average initial distribution relative error
         pi.append(float(list[index]))
         index = index + 1
-    return kl, tr, pi
+        iters.append(int(list[index]))
+        index = index + 1
+    return kl, tr, pi, iters
 
 
 def plot_training(topology):
@@ -180,6 +176,9 @@ def plot_training(topology):
     y_kl_all = []
     y_tr_all = []
     y_in_all = []
+    y_iters_std_all = []
+    y_iters_compr_all = []
+    y_iters_all = []
     for n in n_states:
         tr_kl = []
         tr_tr = []
@@ -187,6 +186,9 @@ def plot_training(topology):
         y_kl = []
         y_tr = []
         y_in = []
+        y_iters_std = []
+        y_iters_compr = []
+        y_iters = []
         for eta in etas:
             tr_kl_std = []
             tr_tr_std = []
@@ -197,12 +199,15 @@ def plot_training(topology):
             tr_kl_diff = []
             tr_tr_diff = []
             tr_in_diff = []
+            tr_iters_std = []
+            tr_iters_compr = []
+            tr_iters_diff = []
             f = "tests/" + topology + "_" + n + "_" + eta + "_"
             # read standard training results
-            tr_kl_std, tr_tr_std, tr_in_std = summarize_training(f +
+            tr_kl_std, tr_tr_std, tr_in_std, tr_iters_std = summarize_training(f +
                 f_tr_std)
             # read compressed training results
-            tr_kl_compr, tr_tr_compr, tr_in_compr = summarize_training(f +
+            tr_kl_compr, tr_tr_compr, tr_in_compr, tr_iters_compr = summarize_training(f +
                 f_tr_compr)
             for i in range(0, len(tr_kl_std)):
                 tr_kl_diff.append(tr_kl_compr[i] - tr_kl_std[i])
@@ -210,18 +215,29 @@ def plot_training(topology):
                 tr_tr_diff.append(tr_tr_compr[i] - tr_tr_std[i])
             for i in range(0, len(tr_in_std)):
                 tr_in_diff.append(tr_in_compr[i] - tr_in_std[i])
+            for i in range(0, len(tr_iters_std)):
+                tr_iters_std.append(tr_iters_std[i])
+                tr_iters_compr.append(tr_iters_compr[i])
+                tr_iters_diff.append(tr_iters_compr[i] - tr_iters_std[i])
             tr_kl.append(tr_kl_diff)
             tr_tr.append(tr_tr_diff)
             tr_in.append(tr_in_diff)
             y_kl.append(median(tr_kl_diff))
             y_tr.append(median(tr_tr_diff))
             y_in.append(median(tr_in_diff))
+            y_iters_std.append(median(tr_iters_std))
+            y_iters_compr.append(median(tr_iters_compr))
+            y_iters.append(median(tr_iters_diff))
+
         tr_kl_list.append(tr_kl)
         tr_tr_list.append(tr_tr)
         tr_in_list.append(tr_in)
         y_kl_all.append(y_kl)
         y_tr_all.append(y_tr)
         y_in_all.append(y_in)
+        y_iters_std_all.append(y_iters_std)
+        y_iters_compr_all.append(y_iters_compr)
+        y_iters_all.append(y_iters)
 
     save_plot(x, y_kl_all, "Training: KL-divergence difference", topology,
         "training_kl", "Difference (abs)", "State separation")
@@ -229,6 +245,14 @@ def plot_training(topology):
         topology, "training_tr", "Difference (abs)", "State separation")
     save_plot(x, y_in_all, "Training: Initial distribution error difference",
         topology, "training_in", "Difference (abs)", "State separation")
+
+    save_plot(x, y_iters_std_all, "Training: Iterations for standard algorithm",
+        topology, "training_iters_std", "Iterations", "State separation")
+    save_plot(x, y_iters_compr_all, "Training: Iterations for compr. algorithm",
+        topology, "training_iters_compr", "Iterations", "State separation")
+    save_plot(x, y_iters_all, "Training: Iterations for standard algorithm",
+        topology, "training_iters_diff", "Iteration Difference",
+        "State separation")
 
     # Training KL
     boxplot_kl_list = []

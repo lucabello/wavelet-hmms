@@ -378,6 +378,10 @@ for iteration in range(test_count, n_tests+1):
     ur_diff.append(compute_error(r_init[0], u_init[u_neworder[0]]))
     cr_diff.append(compute_error(r_init[0], c_init[c_neworder[0]]))
 
+    # iterations
+    ur_diff.append(u_iter)
+    cr_diff.append(c_iter)
+
     ur_model_diff = ur_diff
     cr_model_diff = cr_diff
 

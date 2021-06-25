@@ -5,14 +5,10 @@
 #include "algorithms.hpp"
 #include "Compressor.hpp"
 #include "algorithms_compressed.hpp"
+
 #include <stdio.h>
 
 int main(int argc, const char* argv[]){
-    // std::string filename("data");
-    // Compressor comp(filename);
-    // comp.printAllBlocks();
-    //std::cout.precision(8);
-    //std::cout << std::scientific; // print numbers with scientific notation
     auto result = parse(argc, argv);
 
     Model model, estimate;
@@ -24,107 +20,98 @@ int main(int argc, const char* argv[]){
     bool evaluation = false, decoding = false, training = false;
     bool binary = false, tofile = false;
     bool compressed = false;
-    bool verbose = false, silence = false;
     Compressor *compressor;
     FILE *finObs, *finPath;
 
-    // parsing arguments from command line
-    if(result.count("model")){ // read the model from a file
+    // Configure the log level here
+    AixLog::Log::init<AixLog::SinkCout>(AixLog::Severity::error);
+
+    // Parsing arguments from command line
+    if (result.count("model")) { // read the model from a file
         fileModelIn = result["model"].as<std::string>();
         // Read the file with input observations
         std::ifstream modelFileInput(fileModelIn);
-        if(modelFileInput.is_open()){
+        if (modelFileInput.is_open()) {
             modelFileInput >> model;
         }
         else {
-            std::cerr << "Cannot read file " + fileModelIn + " !" << std::endl;
+            LOG(ERROR) << "Cannot read file " + fileModelIn + " !" << std::endl;
             return -1;
         }
         modelFileInput.close();
     }
     else { // read the model from command line
-        if(result.count("state")){
+        if (result.count("state")) {
             std::vector<double> stateParams = result["state"]
                 .as<std::vector<double>>();
             wahmm::real_t mean, stdDev;
-            for(std::size_t i = 0; i < result.count("state"); i++){
+            for (std::size_t i = 0; i < result.count("state"); i++) {
                 mean = stateParams[i*2];
                 stdDev = stateParams[i*2 + 1];
                 states.push_back(State(mean, stdDev));
             }
         }
-        if(result.count("transitions")){
+        if (result.count("transitions")) {
             std::vector<double> transParams = result["transitions"]
                 .as<std::vector<double>>();
-            for(double d : transParams)
+            for (double d : transParams)
                 relTrans.push_back((wahmm::real_t)d);
         }
-        if(result.count("initial")){
+        if (result.count("initial")) {
             std::vector<double> logParams = result["initial"]
                 .as<std::vector<double>>();
-            for(double d : logParams)
+            for (double d : logParams)
                 relPi.push_back((wahmm::real_t)d);
         }
         model = Model(states, relTrans, relPi);
     }
-    if(result.count("estimate")){
+    if (result.count("estimate")) {
         fileModelIn = result["estimate"].as<std::string>();
         // Read the file with input observations
         std::ifstream modelFileInput(fileModelIn);
-        if(modelFileInput.is_open()){
+        if (modelFileInput.is_open()) {
             modelFileInput >> estimate;
         }
         else {
-            std::cerr << "Cannot read file " + fileModelIn + " !" << std::endl;
+            LOG(ERROR) << "Cannot read file " + fileModelIn + " !" << std::endl;
             return -1;
         }
         modelFileInput.close();
     }
-    if(result.count("obs")){
+    if (result.count("obs")) {
         fileObs = result["obs"].as<std::string>();
     }
-    if(result.count("binary"))
+    if (result.count("binary"))
         binary = true;
-    if(result.count("tofile"))
+    if (result.count("tofile"))
         tofile = true;
-    if(result.count("evaluation"))
+    if (result.count("evaluation"))
         evaluation = true;
-    if(result.count("decoding"))
+    if (result.count("decoding"))
         decoding = true;
-    if(result.count("training"))
+    if (result.count("training"))
         training = true;
-    if(result.count("compressed"))
+    if (result.count("compressed"))
         compressed = true;
-    if(result.count("verbose"))
-        verbose = true;
-    if(result.count("silence"))
-        silence = true;
 
     // some input checks
-    if(states.size() != relPi.size()){
-        std::cerr << "[Error] Wrong initial distribution size" << std::endl;
+    if (states.size() != relPi.size()) {
+        LOG(ERROR) << "Wrong initial distribution size" << std::endl;
         return -1;
     }
-    if(states.size()*states.size() != relTrans.size()){
-        std::cerr << "[Error] Wrong number of transition probabilities";
-        std::cerr << std::endl;
+    if (states.size()*states.size() != relTrans.size()) {
+        LOG(ERROR) << "Wrong number of transition probabilities" << std::endl;
         return -1;
     }
-    if(fileObs.empty()){
-        std::cerr << "[Error] Input file for observations not specified";
-        std::cerr << std::endl;
+    if (fileObs.empty()) {
+        LOG(ERROR) << "Input file for observations not specified" << std::endl;
         return -1;
     }
-    if(silence == true && verbose == true){
-        std::cerr << "[Error] Silence + Verbose flags cannot be used together";
-        std::cerr << std::endl;
-        return -1;
-    }
+
     // read observations
-    if(!compressed){
-        if(!binary){
-            if(verbose)
-                std::cout << "[>] Reading observations... " << std::endl;
+    if (!compressed) {
+        if (!binary) {
+            LOG(DEBUG) << "Reading observations... " << std::endl;
             wahmm::real_t number;
             // efficient file reading in C style
             // Read the file with input observations
@@ -133,67 +120,52 @@ int main(int argc, const char* argv[]){
                 while(fscanf(finObs, "%lf", &number) != EOF)
                     observations.push_back(number);
             } else {
-                std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
+                LOG(ERROR) << "Cannot read file " + fileObs + " !" << std::endl;
                 return -1;
             }
             fclose(finObs);
-            if(verbose)
-                std::cout << "[>] ... done." << std::endl;
+            LOG(DEBUG) << "... done." << std::endl;
         }
         else {
-            if(verbose){
-                std::cout << "[>] Reading observations from binary file... ";
-                std::cout << std::endl;
-            }
+            LOG(DEBUG) << "Reading observations from binary file... " << std::endl;
             finObs = fopen ( fileObs.c_str() , "rb" );
-            if (finObs==NULL){
-                std::cerr << "Cannot read file " + fileObs + " !" << std::endl;
+            if (finObs==NULL) {
+                LOG(ERROR) << "Cannot read file " + fileObs + " !" << std::endl;
                 return -1;
             }
             double n;
             // read one number
-            while(fread(&n,1,sizeof(double),finObs) == sizeof(double))
+            while (fread(&n,1,sizeof(double),finObs) == sizeof(double))
                 observations.push_back((wahmm::real_t)n);
             // terminate
-            fclose (finObs);
-            if(verbose)
-                std::cout << "[>] ... done." << std::endl;
+            fclose(finObs);
+            LOG(DEBUG) << "... done." << std::endl;
         }
     }
     else {
-        if(verbose)
-            std::cout << "[>] Creating Compressor... " << std::endl;
+        LOG(DEBUG) << "Creating Compressor... " << std::endl;
         compressor = new Compressor(fileObs, binary);
-        if(verbose)
-            std::cout << "[>] ... done." << std::endl;
+        LOG(DEBUG) << "... done." << std::endl;
     }
-
-    // print acquired model
-    if(!silence)
-        model.printModel();
 
     // execute the actual algorithms
     if(!compressed){
-        if(verbose)
-            std::cout << "[>] Starting standard algorithms." << std::endl;
+        LOG(INFO) << "Starting standard algorithms." << std::endl;
         if(evaluation)
-            evaluation_problem(model, observations, verbose, silence, tofile);
+            evaluation_problem(model, observations);
         if(decoding)
-            decoding_problem(model, observations, verbose, silence, tofile);
+            decoding_problem(model, observations);
         if(training)
-            training_problem(estimate, observations, 1e-9, 100, verbose,
-                silence, tofile);
+            training_problem(estimate, observations, 1e-9, 100);
     }
     else {
-        if(verbose)
-            std::cout << "[>] Starting compressed algorithms" << std::endl;
+        LOG(INFO) << "Starting compressed algorithms" << std::endl;
         if(evaluation)
-            evaluation_compressed(model, compressor, verbose, silence, tofile);
+            evaluation_compressed(model, compressor);
         if(decoding)
-            decoding_compressed(model, compressor, verbose, silence, tofile);
+            decoding_compressed(model, compressor);
         if(training)
-            training_compressed(estimate, compressor, 1e-9, 100, verbose,
-                silence, tofile);
+            training_compressed(estimate, compressor, 1e-9, 100);
     }
 
     return 0;

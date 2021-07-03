@@ -436,8 +436,8 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
             std::cout << "training_model ... " << std::flush;
         }
         std::ofstream modelFileOutput(PATH_OUT + "training_model");
-        std::ofstream modelImprovementOutput(PATH_OUT + "training_improvement")
-        std::ofstream modelLikelihoodOutput(PATH_OUT + "training_likelihood")
+        std::ofstream modelImprovementOutput(PATH_OUT + "training_improvement");
+        std::ofstream modelLikelihoodOutput(PATH_OUT + "training_likelihood");
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
         }

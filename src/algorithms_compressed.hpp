@@ -498,8 +498,8 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
             std::cout << "training_model ... " << std::flush;
         }
         std::ofstream modelFileOutput(PATH_OUT + "compressed_training_model");
-        std::ofstream modelImprovementOutput(PATH_OUT + "compressed_training_improvement")
-        std::ofstream modelLikelihoodOutput(PATH_OUT + "compressed_training_likelihood")
+        std::ofstream modelImprovementOutput(PATH_OUT + "compressed_training_improvement");
+        std::ofstream modelLikelihoodOutput(PATH_OUT + "compressed_training_likelihood");
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
         }

@@ -386,6 +386,9 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
     wahmm::real_t *logAverage = new wahmm::real_t[m.mStates.size()];
     wahmm::real_t *logVariance = new wahmm::real_t[m.mStates.size()];
 
+    std::vector<wahmm::real_t> evaluationArray;
+    std::vector<wahmm::real_t> improvementArray;
+
     logEpsilon = new wahmm::real_t*[m.mStates.size()];
     logGamma = new wahmm::real_t*[m.mStates.size()];
     for(size_t i = 0; i < m.mStates.size(); i++){
@@ -411,6 +414,8 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
             logGammaSum, logAverage, logVariance);
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
+        improvementArray.push_back(logImprovement);
+        evaluationArray.push_back(evaluation);
         if(verbose){
             std::cout << "[>] Iteration: " << iter << std::endl;
             std::cout << "[>] Evaluation improvement (log): ";
@@ -431,16 +436,22 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
             std::cout << "training_model ... " << std::flush;
         }
         std::ofstream modelFileOutput(PATH_OUT + "training_model");
+        std::ofstream modelImprovementOutput(PATH_OUT + "training_improvement")
+        std::ofstream modelLikelihoodOutput(PATH_OUT + "training_likelihood")
         if(modelFileOutput.is_open()){
             modelFileOutput << m;
         }
-	if(verbose){
-            std::cout << "number of iterations ..." << std::flush;
+	      if(verbose){
+            std::cout << "number of iterations + others ..." << std::flush;
         }
         if(modelFileOutput.is_open()){
-          modelFileOutput << iter;
+            modelFileOutput << iter;
         }
+        for (const auto &e : improvementArray) modelImprovementOutput << e << " ";
+        for (const auto &e : evaluationArray) modelLikelihoodOutput << e << " ";
         modelFileOutput.close();
+        modelImprovementOutput.close();
+        modelLikelihoodOutput.close();
         if(verbose)
             std::cout << "done." << std::endl;
     }

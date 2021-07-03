@@ -16,8 +16,8 @@ save_boxplots = True
 topologies = ["FC"]
 n_states = ["2", "3", "5"]
 boxplot_states = ["2", "3", "5"]
-etas = ["0.6", "0.7", "0.8", "0.9", "1.0"]
-x = [0.6, 0.7, 0.8, 0.9, 1.0]
+etas = ["0.1","0.2","0.3","0.4","0.5","0.6", "0.7", "0.8", "0.9", "1.0"]
+x = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 folder = "plots/"
 base_savename = folder+"PLOT_"
 
@@ -250,7 +250,7 @@ def plot_training(topology):
         topology, "training_iters_std", "Iterations", "State separation")
     save_plot(x, y_iters_compr_all, "Training: Iterations for compr. algorithm",
         topology, "training_iters_compr", "Iterations", "State separation")
-    save_plot(x, y_iters_all, "Training: Iterations for standard algorithm",
+    save_plot(x, y_iters_all, "Training: Iterations difference",
         topology, "training_iters_diff", "Iteration Difference",
         "State separation")
 
@@ -279,6 +279,7 @@ def plot_training(topology):
         title="Training: initial distribution error", topology=topology, \
         suffix="training_in_boxplot", ylabel="Difference (abs)", \
         xlabel="State separation")
+
 
 
 def plot_speedup(topology):

@@ -68,7 +68,11 @@ f_compr_eval_prob = "results/compressed_evaluation_prob"
 f_decod_prob = "results/decoding_prob"
 f_compr_decod_prob = "results/compressed_decoding_prob"
 f_train_mod = "results/training_model"
+f_train_improvement = "results/training_improvement"
+f_train_likelihood = "results/training_likelihood"
 f_compr_train_mod = "results/compressed_training_model"
+f_compr_train_improvement = "results/compressed_training_improvement"
+f_compr_train_likelihood = "results/compressed_training_likelihood"
 # output files
 f_eval_out = "evaluation"
 f_eval_time_std_out = "evaluation_std_time"
@@ -84,6 +88,10 @@ f_train_compr_out = "training_compr"
 # f_train_model_compr_out = "training_model_compr"
 f_train_time_std_out = "training_std_time"
 f_train_time_compr_out = "training_compr_time"
+f_train_improvement_std_out = "training_std_improvement"
+f_train_improvement_compr_out = "training_compr_improvement"
+f_train_likelihood_std_out = "training_std_likelihood"
+f_train_likelihood_compr_out = "training_compr_likelihood"
 # SCRIPTS PATHS
 f_generate_model = "../../python/generate_model.py"
 f_generate_data = "../../python/generate_data.py"
@@ -273,9 +281,13 @@ for iteration in range(test_count, n_tests+1):
     u_nstates, u_means, u_stddevs, u_trans, u_init = uio \
         .read_model()
     u_iter = 100000
+    u_improvement = []
+    u_likelihood = []
     c_nstates, c_means, c_stddevs, c_trans, c_init = uio \
         .read_model()
     c_iter = 100000
+    c_improvement = []
+    c_likelihood = []
     for bw_run in range(0, n_training_runs):
         if verbose:
             print("[Test",test_count,"] -- Running WaHMM uncompressed "
@@ -287,10 +299,13 @@ for iteration in range(test_count, n_tests+1):
         subprocess.call(current_train_std_args)
         end = time.perf_counter()
         current_std_iterations = uio.read_trained_iterations(f_train_mod)
+        # if this BW run is the best one so far ...
         if int(current_std_iterations) < int(u_iter):
             training_time_std = end - start
             u_nstates, u_means, u_stddevs, u_trans, u_init, u_iter = uio \
                 .read_trained_model(f_train_mod)
+            u_improvement = uio.read_oneline_file(f_train_improvement)
+            u_likelihood = uio.read_oneline_file(f_train_likelihood)
         if verbose:
             print("[Test",test_count,"] WaHMM uncompressed training "
                 "finished.")
@@ -303,11 +318,14 @@ for iteration in range(test_count, n_tests+1):
         start = time.perf_counter()
         subprocess.call(current_train_compr_args)
         end = time.perf_counter()
-        current_compr_iterations = uio.read_trained_iterations(f_train_mod)
+        current_compr_iterations = uio.read_trained_iterations(f_compr_train_mod)
+        # if this BW run is the best one so far ...
         if int(current_compr_iterations) < int(c_iter):
             training_time_compr = end - start
             c_nstates, c_means, c_stddevs, c_trans, c_init, c_iter = uio \
                 .read_trained_model(f_compr_train_mod)
+            c_improvement = uio.read_oneline_file(f_compr_train_improvement)
+            c_likelihood = uio.read_oneline_file(f_compr_train_likelihood)
         if verbose:
             print("[Test",test_count,"] WaHMM compressed training "
                 "finished.")
@@ -415,6 +433,27 @@ for iteration in range(test_count, n_tests+1):
     out_file.close()
     appendtofile(f_train_time_std_out, training_time_std)
     appendtofile(f_train_time_compr_out, training_time_compr)
+
+    out_file = open(prefix+f_train_improvement_std_out, "a+")
+    for x in range(0, len(u_improvement)):
+        out_file.write(str(u_improvement[x]) + " ")
+    out_file.write("\n")
+    out_file.close()
+    out_file = open(prefix+f_train_improvement_compr_out, "a+")
+    for x in range(0, len(c_improvement)):
+        out_file.write(str(c_improvement[x]) + " ")
+    out_file.write("\n")
+    out_file.close()
+    out_file = open(prefix+f_train_likelihood_std_out, "a+")
+    for x in range(0, len(u_likelihood)):
+        out_file.write(str(u_likelihood[x]) + " ")
+    out_file.write("\n")
+    out_file.close()
+    out_file = open(prefix+f_train_likelihood_compr_out, "a+")
+    for x in range(0, len(c_likelihood)):
+        out_file.write(str(c_likelihood[x]) + " ")
+    out_file.write("\n")
+    out_file.close()
 
 
 os.chdir("..") # go back to parent directory

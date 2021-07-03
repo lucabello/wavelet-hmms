@@ -140,6 +140,12 @@ def read_trained_model(f):
     in_file.close()
     return n_states, means, std_devs, transitions, initial, iterations
 
+def read_oneline_file(f):
+    in_file = open(f, "r")
+    line = in_file.read()
+    v = line.split()
+    return v
+
 # Read the number of Baum-Welch iterations from a trained model file
 def read_trained_iterations(f):
     in_file = open(f, "r")

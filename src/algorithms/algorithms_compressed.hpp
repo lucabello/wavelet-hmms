@@ -120,9 +120,9 @@ void evaluation_compressed(Model& m, Compressor *c){
     // save results
     LOG(DEBUG) << "[>] Saving compressed evaluation log probability";
     LOG(DEBUG) << " to file " << PATH_OUT;
-    LOG(DEBUG) << "compressed_evaluation_prob ... " << std::flush;
+    LOG(DEBUG) << "compressed_evaluation_probability ... " << std::flush;
 
-    std::ofstream ofs (PATH_OUT + "compressed_evaluation_prob",
+    std::ofstream ofs (PATH_OUT + "compressed_evaluation_probability",
         std::ofstream::out);
     ofs.precision(std::numeric_limits<double>::max_digits10);
     ofs << logEvaluation;
@@ -219,10 +219,10 @@ void decoding_compressed(Model &m, Compressor *c){
 
     // save results
     LOG(DEBUG) << "[>] Saving compressed Viterbi path to file ";
-    LOG(DEBUG) << PATH_OUT << "compressed_decoding_path ...";
+    LOG(DEBUG) << PATH_OUT << "compressed_decoding_path_error ...";
     LOG(DEBUG) << std::flush;
 
-    std::ofstream ofsPath (PATH_OUT + "compressed_decoding_path",
+    std::ofstream ofsPath (PATH_OUT + "compressed_decoding_path_error",
         std::ofstream::out);
     size_t lenIndex = 0;
     for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++){
@@ -236,9 +236,9 @@ void decoding_compressed(Model &m, Compressor *c){
     LOG(DEBUG) << "done." << std::endl;
     LOG(DEBUG) << "[>] Saving compressed Viterbi log likelihood";
     LOG(DEBUG) << " to file " << PATH_OUT;
-    LOG(DEBUG) << "compressed_decoding_prob ... " << std::flush;
+    LOG(DEBUG) << "compressed_decoding_probability ... " << std::flush;
 
-    std::ofstream ofsProb (PATH_OUT + "compressed_decoding_prob",
+    std::ofstream ofsProb (PATH_OUT + "compressed_decoding_probability",
         std::ofstream::out);
     ofsProb.precision(std::numeric_limits<double>::max_digits10);
     ofsProb << currentMax;
@@ -436,14 +436,14 @@ void training_compressed(Model& m, Compressor *c, wahmm::real_t thresh,
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
     }
+    m.updateTrainingVariables(iter, evaluation);
 
     LOG(DEBUG) << "[>] Saving trained model to file " << PATH_OUT;
-    LOG(DEBUG) << "training_model ... " << std::flush;
+    LOG(DEBUG) << "compressed_training_model ... " << std::flush;
 
     std::ofstream modelFileOutput(PATH_OUT + "compressed_training_model");
     if(modelFileOutput.is_open()){
         modelFileOutput << m;
-        modelFileOutput << iter;
     }
     modelFileOutput.close();
 

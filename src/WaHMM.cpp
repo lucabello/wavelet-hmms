@@ -30,15 +30,7 @@ int main(int argc, const char* argv[]){
     if (result.count("model")) { // read the model from a file
         fileModelIn = result["model"].as<std::string>();
         // Read the file with input observations
-        std::ifstream modelFileInput(fileModelIn);
-        if (modelFileInput.is_open()) {
-            modelFileInput >> model;
-        }
-        else {
-            LOG(ERROR) << "Cannot read file " + fileModelIn + " !" << std::endl;
-            return -1;
-        }
-        modelFileInput.close();
+        model = Model(fileModelIn);
     }
     else { // read the model from command line
         if (result.count("state")) {
@@ -68,15 +60,7 @@ int main(int argc, const char* argv[]){
     if (result.count("estimate")) {
         fileModelIn = result["estimate"].as<std::string>();
         // Read the file with input observations
-        std::ifstream modelFileInput(fileModelIn);
-        if (modelFileInput.is_open()) {
-            modelFileInput >> estimate;
-        }
-        else {
-            LOG(ERROR) << "Cannot read file " + fileModelIn + " !" << std::endl;
-            return -1;
-        }
-        modelFileInput.close();
+        estimate = Model(fileModelIn);
     }
     if (result.count("obs")) {
         fileObs = result["obs"].as<std::string>();
@@ -156,7 +140,7 @@ int main(int argc, const char* argv[]){
         if(decoding)
             decoding_problem(model, observations);
         if(training)
-            training_problem(estimate, observations, 1e-9, 100);
+            training_problem(estimate, observations, 1e-3, 100);
     }
     else {
         LOG(INFO) << "Starting compressed algorithms" << std::endl;
@@ -165,7 +149,7 @@ int main(int argc, const char* argv[]){
         if(decoding)
             decoding_compressed(model, compressor);
         if(training)
-            training_compressed(estimate, compressor, 1e-9, 100);
+            training_compressed(estimate, compressor, 1e-3, 100);
     }
 
     return 0;

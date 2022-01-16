@@ -1,0 +1,19 @@
+---
+hmm:
+  topologies:
+    - FullyConnected
+  statesNumber: [2,3]
+  stateSeparation: [1.0]
+observations:
+  sequenceLength: 100000
+  transitionsPerState: 10
+tests:
+  testsNumber: 1
+  trainingsPerTest: 1
+paths:
+  wahmmBinary: ../../bin/WaHmm
+  testsRoot: tests
+flags:
+  verbose: false
+  keepTests: true
+  multithread: false

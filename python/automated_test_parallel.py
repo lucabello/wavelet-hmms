@@ -9,27 +9,26 @@ import numpy as np
 import time
 import os
 import networkx as nx
+import yaml
 
 if "-h" in sys.argv or "--help" in sys.argv:
-    print("WaHMM automated test - parallel")
-    print("automated_test_parallel.py <topology> <n_states> <eta>")
-    print("<topology> is either FC, CI or LR")
-    print("<n_states> is the number of states")
-    print("<eta> is the state separation")
+    print("WaHMM automated test")
+    print("automated_test_parallel.py <configuration_file>")
     exit(0)
 
-if len(sys.argv) != 4:
-    print("Error. Execute as: automated_test_parallel.py <topology> " \
-        "<n_states> <eta>")
+if len(sys.argv) != 1:
+    print("Error. Execute as: automated_test_parallel.py <configuration_file>")
     exit(1)
 
-topology = sys.argv[1]
-n_states = int(sys.argv[2])
-eta = float(sys.argv[3])
+with open(sys.argv[1]) as file:
+    config = yaml.safe_load(file)
+
+topologies = config["hmm"]["topologies"]
+states = config["hmm"]["statesNumber"]
+eta = config["hmm"]["stateSeparation"]
 
 # OPTIONS
-topology_prefix = topology
-n_transitions = 10
+n_transitions = n_states*10
 sequence_length = 100000
 n_tests = 100
 n_training_runs = 10
@@ -118,13 +117,11 @@ train_compr_args.append("--compressed")
 
 if verbose:
     print("=== WaHMM AUTOMATED TESTING ===")
-    print("topology:",topology_prefix)
-    print("eta:",eta," #states:",state," #tests:",n_tests)
+    print("topology:",topologies)
+    print("eta:",eta," #states:",states," #tests:",n_tests)
 
 
-# print("[Test] --- Using Eta:",eta,"---")
-# print("[Test] --- Model with",n_states,"states ---")
-# operate in a specific folder to avoid overlap with other processes
+# Create a subfolder for the test set
 base_folder = "tests/"+topology_prefix+"_"+str(n_states)+"_"+ \
     str(eta)+"/"
 os.makedirs(os.path.dirname(base_folder), exist_ok=True)

@@ -100,9 +100,9 @@ void evaluation_problem(Model& m, std::vector<wahmm::real_t>& obs){
 
     // save results
     LOG(DEBUG) << "Saving evaluation log probability to file ";
-    LOG(DEBUG) << PATH_OUT << "evaluation_prob ... " << std::flush;
+    LOG(DEBUG) << PATH_OUT << "evaluation_probability ... " << std::flush;
 
-    std::ofstream ofs (PATH_OUT + "evaluation_prob", std::ofstream::out);
+    std::ofstream ofs (PATH_OUT + "evaluation_probability", std::ofstream::out);
     ofs.precision(std::numeric_limits<double>::max_digits10);
     ofs << logEvaluation;
     ofs.close();
@@ -188,18 +188,18 @@ void decoding_problem(Model &m, std::vector<wahmm::real_t>& obs){
 
     // save results
     LOG(DEBUG) << "[>] Saving Viterbi path to file " << PATH_OUT;
-    LOG(DEBUG) << "decoding_path ... " << std::flush;
+    LOG(DEBUG) << "decoding_path_error ... " << std::flush;
 
-    std::ofstream ofsPath (PATH_OUT + "decoding_path", std::ofstream::out);
+    std::ofstream ofsPath (PATH_OUT + "decoding_path_error", std::ofstream::out);
     for(auto it = viterbiPath.begin(); it != viterbiPath.end(); it++)
         ofsPath << *it << " ";
     ofsPath.close();
 
     LOG(DEBUG) << "done." << std::endl;
     LOG(DEBUG) << "[>] Saving Viterbi log likelihood to file ";
-    LOG(DEBUG) << PATH_OUT << "decoding_prob ... " << std::flush;
+    LOG(DEBUG) << PATH_OUT << "decoding_probability ... " << std::flush;
 
-    std::ofstream ofsProb (PATH_OUT + "decoding_prob", std::ofstream::out);
+    std::ofstream ofsProb (PATH_OUT + "decoding_probability", std::ofstream::out);
     ofsProb.precision(std::numeric_limits<double>::max_digits10);
     ofsProb << currentMax;
     ofsProb.close();
@@ -373,6 +373,7 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
         logImprovement = newEvaluation - evaluation;
         evaluation = newEvaluation;
     }
+    m.updateTrainingVariables(iter, evaluation);
 
     LOG(DEBUG) << "Saving trained model to file " << PATH_OUT;
     LOG(DEBUG) << "training_model ... " << std::flush;
@@ -380,7 +381,6 @@ void training_problem(Model& m, std::vector<wahmm::real_t>& obs,
     std::ofstream modelFileOutput(PATH_OUT + "training_model");
     if(modelFileOutput.is_open()){
         modelFileOutput << m;
-        modelFileOutput << iter;
     }
     modelFileOutput.close();
 
